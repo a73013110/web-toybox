@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta name="description" content="挑選日期與活動，完成一張專屬的邀請卡。">
+    <meta name="description" content="選擇空檔暗號與活動，完成一張專屬的邀請卡。">
     <title>Invitation Card — Web Toybox</title>
     <link rel="icon" href="../../favicon.svg" type="image/svg+xml">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -14,8 +14,17 @@
   </head>
   <body>
     <div class="grid-overlay" aria-hidden="true"></div>
+    <div class="aurora" aria-hidden="true"></div>
     <div class="mesh" id="mesh" aria-hidden="true"></div>
     <div class="ambient-dots" id="ambientDots" aria-hidden="true"></div>
+    <div class="ambient-shapes" id="ambientShapes" aria-hidden="true">
+      <span class="shape shape-ring"></span>
+      <span class="shape shape-diamond"></span>
+      <span class="shape shape-ring shape-ring-small"></span>
+      <span class="shape shape-line"></span>
+      <span class="shape shape-diamond shape-diamond-small"></span>
+      <span class="shape shape-arc"></span>
+    </div>
 
     <a class="back-link" href="../../" aria-label="回到作品目錄">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5m6-6-6 6 6 6"/></svg>
@@ -60,18 +69,41 @@
         <section class="scene" id="scene3" data-step="3" aria-labelledby="scene3Title" hidden>
           <div class="mark" aria-hidden="true">
             <svg viewBox="0 0 34 34" fill="none">
-              <rect class="mark-ink" x="5" y="7" width="24" height="22" rx="1"/>
-              <path class="mark-ink" d="M5 13h24M11 4v6M23 4v6"/>
+              <circle class="mark-ink" cx="17" cy="17" r="14"/>
+              <path class="mark-ink" d="M17 9v8l5 3M25.5 8.5l2-2"/>
             </svg>
           </div>
           <p class="eyebrow">Step One</p>
-          <h2 id="scene3Title">挑選日期</h2>
-          <p class="sub">選一個彼此都方便的日子</p>
-          <div class="divider" aria-hidden="true"></div>
-          <form id="dateForm" novalidate>
-            <label class="sr-only" for="dateInput">邀請日期</label>
-            <input type="date" id="dateInput" name="date" required>
-            <p class="field-error" id="dateError" aria-live="polite"></p>
+          <h2 id="scene3Title">空檔暗號</h2>
+          <p class="sub">等兩個大忙人同時逃出行程表</p>
+
+          <form id="timingForm" novalidate>
+            <fieldset class="timing-fieldset">
+              <legend class="sr-only">選擇成行方式</legend>
+              <div class="timing-grid">
+                <label class="timing-option">
+                  <input type="radio" name="timing" value="突然有空就走">
+                  <span class="timing-card"><b>01</b><span><strong>突然有空就走</strong><small>不問原因，先離開工作現場。</small></span></span>
+                </label>
+                <label class="timing-option">
+                  <input type="radio" name="timing" value="提前三天通知">
+                  <span class="timing-card"><b>02</b><span><strong>提前三天通知</strong><small>給行事曆一點心理準備。</small></span></span>
+                </label>
+                <label class="timing-option">
+                  <input type="radio" name="timing" value="深夜限定">
+                  <span class="timing-card"><b>03</b><span><strong>深夜限定</strong><small>白天屬於生活，晚上才屬於我們。</small></span></span>
+                </label>
+                <label class="timing-option">
+                  <input type="radio" name="timing" value="看到訊息再說">
+                  <span class="timing-card"><b>04</b><span><strong>看到訊息再說</strong><small>一切取決於當時的電量。</small></span></span>
+                </label>
+                <label class="timing-option">
+                  <input type="radio" name="timing" value="交給命運安排">
+                  <span class="timing-card"><b>05</b><span><strong>交給命運安排</strong><small>同時有空的那天，就是黃道吉日。</small></span></span>
+                </label>
+              </div>
+            </fieldset>
+            <p class="field-error" id="timingError" aria-live="polite"></p>
             <button class="btn btn-primary btn-wide" id="toScene4" type="submit" disabled>繼續</button>
           </form>
         </section>
@@ -85,21 +117,60 @@
           </div>
           <p class="eyebrow">Step Two</p>
           <h2 id="scene4Title">選擇項目</h2>
-          <p class="sub">選不出來，也可以理直氣壯地交給安排</p>
+          <p class="sub">可以複選，多挑幾件想一起做的事</p>
 
           <form id="activityForm" novalidate>
             <fieldset class="activity-fieldset">
-              <legend class="sr-only">選擇一項活動</legend>
+              <legend class="sr-only">選擇一項或多項活動</legend>
               <div class="activity-grid">
-                <label class="activity-option"><input type="radio" name="activity" value="用餐"><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2v6a2 2 0 0 0 2 2v12M7 2a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2M17 2c-2 0-3 2-3 5v3c0 1.5 1 2 2 2v10"/></svg>用餐</span></label>
-                <label class="activity-option"><input type="radio" name="activity" value="觀影"><span><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 8h20M7 4v4M17 4v4"/></svg>觀影</span></label>
-                <label class="activity-option"><input type="radio" name="activity" value="散步小酌"><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8h1a3 3 0 0 1 0 6h-1M4 8h14v6a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4V8z"/></svg>散步小酌</span></label>
-                <label class="activity-option"><input type="radio" name="activity" value="藝文展覽"><span><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="1"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></svg>藝文展覽</span></label>
-                <label class="activity-option"><input type="radio" name="activity" value="靜謐晚餐"><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2v20M4 8h16M4 8a8 8 0 0 0 16 0"/></svg>靜謐晚餐</span></label>
-                <label class="activity-option"><input type="radio" name="activity" value="交給安排"><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8"/></svg>交給安排</span></label>
+                <label class="activity-option">
+                  <input type="checkbox" name="activities" value="用餐">
+                  <span class="option-card">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2v6a2 2 0 0 0 2 2v12M7 2a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2M17 2c-2 0-3 2-3 5v3c0 1.5 1 2 2 2v10"/></svg>
+                    <span class="option-copy"><b>用餐</b><small>先研究菜單，最後還是點招牌。</small></span>
+                  </span>
+                </label>
+                <label class="activity-option">
+                  <input type="checkbox" name="activities" value="散步">
+                  <span class="option-card">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 5a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0ZM10 9l-2 5-4 2M10 9l4 3 4-1M8 14l3 2-1 6M11 16l4 6"/></svg>
+                    <span class="option-copy"><b>散步</b><small>走著走著，也許就不想回家。</small></span>
+                  </span>
+                </label>
+                <label class="activity-option">
+                  <input type="checkbox" name="activities" value="由妳安排">
+                  <span class="option-card">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8"/></svg>
+                    <span class="option-copy"><b>由妳安排</b><small>我負責準時出現，驚喜交給妳。</small></span>
+                  </span>
+                </label>
+                <label class="activity-option">
+                  <input type="checkbox" name="activities" value="深夜暢談">
+                  <span class="option-card">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 15.5A8.5 8.5 0 0 1 8.5 4 8.5 8.5 0 1 0 20 15.5Z"/><path d="M9 12h.01M13 12h.01M17 12h.01"/></svg>
+                    <span class="option-copy"><b>深夜暢談</b><small>手機翻面，聊到城市慢慢安靜。</small></span>
+                  </span>
+                </label>
+                <label class="activity-option">
+                  <input type="checkbox" name="activities" value="交換心事">
+                  <span class="option-card">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z"/></svg>
+                    <span class="option-copy"><b>交換心事</b><small>一人一個秘密，先從不尷尬的開始。</small></span>
+                  </span>
+                </label>
+                <label class="activity-option">
+                  <input type="checkbox" name="activities" value="未來藍圖">
+                  <span class="option-card">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 20h18M5 20V9l7-5 7 5v11M9 20v-6h6v6"/><path d="M17 4h4v4"/></svg>
+                    <span class="option-copy"><b>未來藍圖</b><small>不急著定答案，先把想像攤開聊。</small></span>
+                  </span>
+                </label>
               </div>
             </fieldset>
-            <p class="field-error" id="activityError" aria-live="polite"></p>
+            <div class="selection-status">
+              <p id="selectionCount" aria-live="polite">尚未選擇</p>
+              <p class="field-error" id="activityError" aria-live="polite"></p>
+            </div>
             <button class="btn btn-primary btn-wide" id="toScene5" type="submit" disabled>確認選擇</button>
           </form>
         </section>
@@ -114,7 +185,7 @@
           <p class="eyebrow">All Set</p>
           <h2 id="scene5Title">行程已安排</h2>
           <dl class="summary-box">
-            <div class="summary-row"><dt>日期</dt><dd id="summaryDate">—</dd></div>
+            <div class="summary-row"><dt>時間</dt><dd id="summaryTiming">—</dd></div>
             <div class="summary-row"><dt>項目</dt><dd id="summaryActivity">—</dd></div>
           </dl>
           <p class="friendly-clause">友情提醒：臨時放鳥，罰請一杯飲料。</p>

@@ -5,6 +5,7 @@
 const scenes = [...document.querySelectorAll('.scene')];
 const mesh = document.getElementById('mesh');
 const ambientDots = document.getElementById('ambientDots');
+const ambientShapes = document.getElementById('ambientShapes');
 const card = document.getElementById('card');
 const progressBar = document.getElementById('progressBar');
 const stepLabel = document.getElementById('stepLabel');
@@ -12,15 +13,16 @@ const yesBtn = document.getElementById('yesBtn');
 const noBtn = document.getElementById('noBtn');
 const subText = document.getElementById('subText');
 const toScene3 = document.getElementById('toScene3');
-const dateForm = document.getElementById('dateForm');
-const dateInput = document.getElementById('dateInput');
-const dateError = document.getElementById('dateError');
+const timingForm = document.getElementById('timingForm');
+const timingInputs = [...document.querySelectorAll('input[name="timing"]')];
+const timingError = document.getElementById('timingError');
 const toScene4 = document.getElementById('toScene4');
 const activityForm = document.getElementById('activityForm');
-const activityInputs = [...document.querySelectorAll('input[name="activity"]')];
+const activityInputs = [...document.querySelectorAll('input[name="activities"]')];
 const activityError = document.getElementById('activityError');
 const toScene5 = document.getElementById('toScene5');
-const summaryDate = document.getElementById('summaryDate');
+const selectionCount = document.getElementById('selectionCount');
+const summaryTiming = document.getElementById('summaryTiming');
 const summaryActivity = document.getElementById('summaryActivity');
 const restartBtn = document.getElementById('restartBtn');
 
@@ -28,7 +30,7 @@ const restartBtn = document.getElementById('restartBtn');
 // State / Configuration
 // ========================================
 
-const state = { currentStep: 1, dodgeCount: 0, chosenActivity: '', textToken: 0 };
+const state = { currentStep: 1, dodgeCount: 0, chosenTiming: '', chosenActivities: [], textToken: 0 };
 const declineReactions = [
   { message: '再考慮一下嘛，飲料我請', label: '你確定？' },
   { message: '這可能只是你的手滑了一下', label: '剛剛不算' },
@@ -37,15 +39,7 @@ const declineReactions = [
   { message: '好啦，不勉強。邀請會一直保留', label: '本按鈕已下班' }
 ];
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
-
-function toLocalISODate(date) {
-  const offset = date.getTimezoneOffset() * 60_000;
-  return new Date(date.getTime() - offset).toISOString().slice(0, 10);
-}
-
-function formatDate(dateString) {
-  return new Intl.DateTimeFormat('zh-TW', { month: 'long', day: 'numeric', weekday: 'short' }).format(new Date(`${dateString}T12:00:00`));
-}
+const coarsePointer = window.matchMedia('(pointer: coarse)');
 
 function focusScene(scene) {
   const heading = scene.querySelector('h1, h2');
@@ -57,10 +51,32 @@ function focusScene(scene) {
 // Background Effects
 // ========================================
 
+let lastSparkTime = 0;
+
 document.addEventListener('pointermove', (event) => {
   mesh.style.setProperty('--mx', `${(event.clientX / window.innerWidth) * 100}%`);
   mesh.style.setProperty('--my', `${(event.clientY / window.innerHeight) * 100}%`);
+
+  // 幾何裝飾只做小幅視差，避免搶走卡片焦點。
+  const offsetX = (event.clientX / window.innerWidth - 0.5) * 16;
+  const offsetY = (event.clientY / window.innerHeight - 0.5) * 12;
+  ambientShapes.style.transform = `translate3d(${offsetX}px, ${offsetY}px, 0)`;
+
+  if (reduceMotion.matches || coarsePointer.matches || Date.now() - lastSparkTime < 55) return;
+  lastSparkTime = Date.now();
+  spawnPointerSpark(event.clientX, event.clientY);
 });
+
+function spawnPointerSpark(x, y) {
+  const spark = document.createElement('span');
+  spark.className = 'pointer-spark';
+  spark.style.left = `${x}px`;
+  spark.style.top = `${y}px`;
+  spark.style.setProperty('--spark-x', `${Math.random() * 18 - 9}px`);
+  spark.style.setProperty('--spark-y', `${-10 - Math.random() * 18}px`);
+  ambientDots.appendChild(spark);
+  spark.addEventListener('animationend', () => spark.remove(), { once: true });
+}
 
 function spawnDot() {
   if (reduceMotion.matches || document.hidden) return;
@@ -77,7 +93,14 @@ function spawnDot() {
   window.setTimeout(() => dot.remove(), duration * 1000);
 }
 
-window.setInterval(spawnDot, 650);
+// 先放入少量錯開的光點，避免初次進入時背景過於安靜。
+if (!reduceMotion.matches) {
+  for (let index = 0; index < (coarsePointer.matches ? 8 : 14); index += 1) {
+    window.setTimeout(spawnDot, index * 120);
+  }
+}
+
+window.setInterval(spawnDot, coarsePointer.matches ? 850 : 420);
 
 // ========================================
 // Scene Navigation
@@ -143,19 +166,22 @@ noBtn.addEventListener('click', declineInvitation);
 toScene3.addEventListener('click', () => showScene('scene3'));
 
 // ========================================
-// Date / Activity Selection
+// Timing / Activity Selection
 // ========================================
 
-dateInput.min = toLocalISODate(new Date()); // 限制只能選擇今天或未來日期。
-dateInput.addEventListener('input', () => {
-  toScene4.disabled = !dateInput.value;
-  dateError.textContent = '';
+timingInputs.forEach((input) => {
+  input.addEventListener('change', () => {
+    state.chosenTiming = input.value;
+    toScene4.disabled = false;
+    timingError.textContent = '';
+  });
 });
-dateForm.addEventListener('submit', (event) => {
+
+timingForm.addEventListener('submit', (event) => {
   event.preventDefault();
-  if (!dateInput.value) {
-    dateError.textContent = '請先選擇日期。';
-    dateInput.focus();
+  if (!state.chosenTiming) {
+    timingError.textContent = '請先選一個成行暗號。';
+    timingInputs[0]?.focus();
     return;
   }
   showScene('scene4');
@@ -163,20 +189,24 @@ dateForm.addEventListener('submit', (event) => {
 
 activityInputs.forEach((input) => {
   input.addEventListener('change', () => {
-    state.chosenActivity = input.value;
-    toScene5.disabled = false;
+    // 重新收集所有勾選值，讓取消選取時狀態也保持正確。
+    state.chosenActivities = activityInputs.filter((item) => item.checked).map((item) => item.value);
+    const count = state.chosenActivities.length;
+    toScene5.disabled = count === 0;
+    toScene5.textContent = count > 0 ? `確認 ${count} 項選擇` : '確認選擇';
+    selectionCount.textContent = count > 0 ? `已選擇 ${count} 項` : '尚未選擇';
     activityError.textContent = '';
   });
 });
 activityForm.addEventListener('submit', (event) => {
   event.preventDefault();
-  if (!state.chosenActivity) {
-    activityError.textContent = '請先選擇一個項目。';
+  if (state.chosenActivities.length === 0) {
+    activityError.textContent = '請至少選擇一個項目。';
     activityInputs[0]?.focus();
     return;
   }
-  summaryDate.textContent = formatDate(dateInput.value);
-  summaryActivity.textContent = state.chosenActivity;
+  summaryTiming.textContent = state.chosenTiming;
+  summaryActivity.textContent = state.chosenActivities.join('、');
   showScene('scene5');
   burst(20);
 });
@@ -211,14 +241,17 @@ function burst(count = 12) {
 restartBtn.addEventListener('click', () => {
   state.currentStep = 1;
   state.dodgeCount = 0;
-  state.chosenActivity = '';
+  state.chosenTiming = '';
+  state.chosenActivities = [];
   state.textToken += 1;
-  dateForm.reset();
+  timingForm.reset();
   activityForm.reset();
-  dateError.textContent = '';
+  timingError.textContent = '';
   activityError.textContent = '';
   toScene4.disabled = true;
   toScene5.disabled = true;
+  toScene5.textContent = '確認選擇';
+  selectionCount.textContent = '尚未選擇';
   noBtn.disabled = false;
   noBtn.textContent = '先不要';
   noBtn.style.removeProperty('--dodge-x');
