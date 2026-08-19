@@ -177,6 +177,7 @@ h1, h2 { margin: 0 0 10px; color: var(--ink); font-family: "Cormorant Garamond",
   h1, h2 { font-size: 29px; }
   .activity-grid { grid-template-columns: 1fr; }
   .activity-option .option-card { min-height: 76px; }
+  .custom-activity-option .option-card { min-height: 118px; } /* 自訂輸入欄需要額外高度，避免手機版文字重疊。 */
   .shape-ring { top: 12%; left: -28px; width: 68px; height: 68px; }
   .shape-diamond { top: 30%; right: -24px; width: 48px; height: 48px; }
   .shape-line, .shape-arc { display: none; }

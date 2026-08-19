@@ -8,6 +8,7 @@ const ambientDots = document.getElementById('ambientDots');
 const ambientShapes = document.getElementById('ambientShapes');
 const card = document.getElementById('card');
 const stage = document.querySelector('.stage');
+const backLink = document.querySelector('.back-link');
 const progressBar = document.getElementById('progressBar');
 const stepLabel = document.getElementById('stepLabel');
 const previousBtn = document.getElementById('previousBtn');
@@ -41,12 +42,14 @@ const restartBtn = document.getElementById('restartBtn');
 
 const query = new URLSearchParams(window.location.search);
 const sceneOrder = ['scene1', 'scene2', 'scene3', 'scene4', 'scene5'];
+const normalizeName = (value = '') => value.trim().slice(0, 40);
 const state = {
   currentStep: 1,
   dodgeCount: 0,
   chosenTiming: '',
   chosenActivities: [],
-  inviteeName: query.get('invite')?.trim() || '',
+  inviteeName: normalizeName(query.get('invite') || ''),
+  lastSubmittedSignature: '',
   textToken: 0
 };
 const FORMSPREE_ENDPOINT = 'https://formspree.io/f/xnpaoyer';
@@ -117,9 +120,8 @@ if (!reduceMotion.matches) {
   for (let index = 0; index < (coarsePointer.matches ? 8 : 14); index += 1) {
     window.setTimeout(spawnDot, index * 120);
   }
+  window.setInterval(spawnDot, coarsePointer.matches ? 850 : 420); // 減少動態模式下不啟動背景計時器。
 }
-
-window.setInterval(spawnDot, coarsePointer.matches ? 850 : 420);
 
 // ========================================
 // Scene Navigation
@@ -151,7 +153,7 @@ previousBtn.addEventListener('click', () => {
 // ========================================
 
 function applyInviteeName(name) {
-  state.inviteeName = name.trim();
+  state.inviteeName = normalizeName(name); // URL 參數也限制為與輸入欄相同的長度。
   inviteeNameLabel.textContent = `${state.inviteeName}，`;
   inviteeNameLabel.hidden = !state.inviteeName; // 姓名只透過 textContent 寫入，避免注入 HTML。
 }
@@ -161,6 +163,7 @@ if (state.inviteeName) {
 } else {
   nameGate.hidden = false;
   stage.inert = true; // 輸入稱呼前，暫時禁止操作後方的邀請卡。
+  backLink.inert = true;
   document.body.classList.add('name-gate-open');
   window.setTimeout(() => inviteeNameInput.focus(), 0);
 }
@@ -178,6 +181,7 @@ nameForm.addEventListener('submit', (event) => {
   nameError.textContent = '';
   nameGate.hidden = true;
   stage.inert = false;
+  backLink.inert = false;
   document.body.classList.remove('name-gate-open');
   focusScene(document.getElementById('scene1'));
 });
@@ -239,6 +243,7 @@ timingInputs.forEach((input) => {
     state.chosenTiming = input.value;
     toScene4.disabled = false;
     timingError.textContent = '';
+    updateActivities(); // 修改時間後，允許重新送出更新後的選擇。
   });
 });
 
@@ -265,10 +270,17 @@ function updateActivities() {
 
   const count = state.chosenActivities.length;
   const customIncomplete = customActivityToggle.checked && !customActivity;
-  toScene5.disabled = count === 0 || customIncomplete;
-  toScene5.textContent = count > 0 ? `確認 ${count} 項選擇` : '確認選擇';
+  const alreadySubmitted = getSelectionSignature() === state.lastSubmittedSignature;
+  toScene5.disabled = count === 0 || customIncomplete || alreadySubmitted;
+  toScene5.textContent = alreadySubmitted
+    ? '已送出'
+    : count > 0 ? `確認 ${count} 項選擇` : '確認選擇';
   selectionCount.textContent = count > 0 ? `已選擇 ${count} 項` : '尚未選擇';
   activityError.textContent = customIncomplete ? '請填寫自訂項目。' : '';
+}
+
+function getSelectionSignature() {
+  return JSON.stringify([state.chosenTiming, state.chosenActivities]);
 }
 
 activityInputs.forEach((input) => input.addEventListener('change', updateActivities));
@@ -284,20 +296,29 @@ customActivityInput.addEventListener('input', () => {
 });
 
 async function sendInvitationResult() {
-  const response = await fetch(FORMSPREE_ENDPOINT, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: 'application/json' // 要求 Formspree 回傳 JSON，方便判斷傳送結果。
-    },
-    body: JSON.stringify({
-      invite: state.inviteeName || '未指定',
-      timing: state.chosenTiming,
-      activities: state.chosenActivities.join('、'),
-      submittedAt: new Date().toLocaleString('zh-TW'),
-      page: window.location.href
-    })
-  });
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), 12000);
+  let response;
+
+  try {
+    response = await fetch(FORMSPREE_ENDPOINT, {
+      method: 'POST',
+      signal: controller.signal, // 避免網路無回應時讓按鈕永久停在傳送狀態。
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json' // 要求 Formspree 回傳 JSON，方便判斷傳送結果。
+      },
+      body: JSON.stringify({
+        invite: state.inviteeName || '未指定',
+        timing: state.chosenTiming,
+        activities: state.chosenActivities.join('、'),
+        submittedAt: new Date().toLocaleString('zh-TW'),
+        page: window.location.href
+      })
+    });
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
 
   if (!response.ok) {
     throw new Error(`Formspree 傳送失敗：${response.status}`); // 交給送出流程顯示重試訊息。
@@ -325,6 +346,8 @@ activityForm.addEventListener('submit', async (event) => {
     await sendInvitationResult(); // 確認 Formspree 收到結果後，才顯示完成畫面。
     summaryTiming.textContent = state.chosenTiming;
     summaryActivity.textContent = state.chosenActivities.join('、');
+    state.lastSubmittedSignature = getSelectionSignature();
+    updateActivities(); // 回到選擇頁時顯示已送出，避免同一份結果重複提交。
     showScene('scene5');
     burst(20);
   } catch (error) {
@@ -367,10 +390,10 @@ restartBtn.addEventListener('click', () => {
   state.dodgeCount = 0;
   state.chosenTiming = '';
   state.chosenActivities = [];
+  state.lastSubmittedSignature = '';
   state.textToken += 1;
   timingForm.reset();
   activityForm.reset();
-  customActivityInput.value = '';
   timingError.textContent = '';
   activityError.textContent = '';
   toScene4.disabled = true;
