@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="description" content="挑選日期與活動，完成一張專屬的邀請卡。">
+    <title>Invitation Card — Web Toybox</title>
+    <link rel="icon" href="../../favicon.svg" type="image/svg+xml">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../../shared/base.css">
+    <link rel="stylesheet" href="./style.css">
+  </head>
+  <body>
+    <div class="grid-overlay" aria-hidden="true"></div>
+    <div class="mesh" id="mesh" aria-hidden="true"></div>
+    <div class="ambient-dots" id="ambientDots" aria-hidden="true"></div>
+
+    <a class="back-link" href="../../" aria-label="回到作品目錄">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5m6-6-6 6 6 6"/></svg>
+      <span>作品目錄</span>
+    </a>
+
+    <main class="stage">
+      <article class="card" id="card" aria-label="邀請卡互動流程">
+        <div class="progress" aria-hidden="true"><span id="progressBar"></span></div>
+
+        <section class="scene active" id="scene1" data-step="1" aria-labelledby="scene1Title">
+          <div class="mark" aria-hidden="true">
+            <svg viewBox="0 0 34 34" fill="none">
+              <rect x="4" y="4" width="26" height="26"/>
+              <rect x="9" y="9" width="16" height="16" transform="rotate(45 17 17)"/>
+            </svg>
+          </div>
+          <p class="eyebrow">Private Invitation</p>
+          <h1 id="scene1Title">你願意跟我<br>出去嗎？</h1>
+          <p class="sub"><span class="sub-inner" id="subText" aria-live="polite">誠摯邀請，共度一段時光</span></p>
+          <div class="divider" aria-hidden="true"></div>
+          <div class="button-stack">
+            <button class="btn btn-primary" id="yesBtn" type="button">願意</button>
+            <button class="btn btn-link" id="noBtn" type="button">先不要</button>
+          </div>
+        </section>
+
+        <section class="scene" id="scene2" data-step="2" aria-labelledby="scene2Title" hidden>
+          <div class="mark" aria-hidden="true">
+            <svg viewBox="0 0 34 34" fill="none">
+              <circle cx="17" cy="17" r="15"/>
+              <path class="mark-ink" d="M11 17l4 4 8-8"/>
+            </svg>
+          </div>
+          <p class="eyebrow">Confirmed</p>
+          <h2 id="scene2Title">太好了</h2>
+          <p class="sub">接下來，一起決定細節</p>
+          <div class="divider" aria-hidden="true"></div>
+          <button class="btn btn-primary btn-wide" id="toScene3" type="button">繼續</button>
+        </section>
+
+        <section class="scene" id="scene3" data-step="3" aria-labelledby="scene3Title" hidden>
+          <div class="mark" aria-hidden="true">
+            <svg viewBox="0 0 34 34" fill="none">
+              <rect class="mark-ink" x="5" y="7" width="24" height="22" rx="1"/>
+              <path class="mark-ink" d="M5 13h24M11 4v6M23 4v6"/>
+            </svg>
+          </div>
+          <p class="eyebrow">Step One</p>
+          <h2 id="scene3Title">挑選日期</h2>
+          <p class="sub">選一個彼此都方便的日子</p>
+          <div class="divider" aria-hidden="true"></div>
+          <form id="dateForm" novalidate>
+            <label class="sr-only" for="dateInput">邀請日期</label>
+            <input type="date" id="dateInput" name="date" required>
+            <p class="field-error" id="dateError" aria-live="polite"></p>
+            <button class="btn btn-primary btn-wide" id="toScene4" type="submit" disabled>繼續</button>
+          </form>
+        </section>
+
+        <section class="scene" id="scene4" data-step="4" aria-labelledby="scene4Title" hidden>
+          <div class="mark" aria-hidden="true">
+            <svg viewBox="0 0 34 34" fill="none">
+              <circle class="mark-ink" cx="17" cy="17" r="14"/>
+              <path class="mark-ink" d="M17 9v8l6 3"/>
+            </svg>
+          </div>
+          <p class="eyebrow">Step Two</p>
+          <h2 id="scene4Title">選擇項目</h2>
+          <p class="sub">想一起做些什麼</p>
+
+          <form id="activityForm" novalidate>
+            <fieldset class="activity-fieldset">
+              <legend class="sr-only">選擇一項活動</legend>
+              <div class="activity-grid">
+                <label class="activity-option"><input type="radio" name="activity" value="用餐"><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2v6a2 2 0 0 0 2 2v12M7 2a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2M17 2c-2 0-3 2-3 5v3c0 1.5 1 2 2 2v10"/></svg>用餐</span></label>
+                <label class="activity-option"><input type="radio" name="activity" value="觀影"><span><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 8h20M7 4v4M17 4v4"/></svg>觀影</span></label>
+                <label class="activity-option"><input type="radio" name="activity" value="散步小酌"><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8h1a3 3 0 0 1 0 6h-1M4 8h14v6a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4V8z"/></svg>散步小酌</span></label>
+                <label class="activity-option"><input type="radio" name="activity" value="藝文展覽"><span><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="1"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></svg>藝文展覽</span></label>
+                <label class="activity-option"><input type="radio" name="activity" value="靜謐晚餐"><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2v20M4 8h16M4 8a8 8 0 0 0 16 0"/></svg>靜謐晚餐</span></label>
+                <label class="activity-option"><input type="radio" name="activity" value="交給安排"><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8"/></svg>交給安排</span></label>
+              </div>
+            </fieldset>
+            <p class="field-error" id="activityError" aria-live="polite"></p>
+            <button class="btn btn-primary btn-wide" id="toScene5" type="submit" disabled>確認選擇</button>
+          </form>
+        </section>
+
+        <section class="scene" id="scene5" data-step="5" aria-labelledby="scene5Title" hidden>
+          <div class="mark" aria-hidden="true">
+            <svg viewBox="0 0 34 34" fill="none">
+              <rect x="4" y="4" width="26" height="26"/>
+              <rect x="9" y="9" width="16" height="16" transform="rotate(45 17 17)"/>
+            </svg>
+          </div>
+          <p class="eyebrow">All Set</p>
+          <h2 id="scene5Title">行程已安排</h2>
+          <dl class="summary-box">
+            <div class="summary-row"><dt>日期</dt><dd id="summaryDate">—</dd></div>
+            <div class="summary-row"><dt>項目</dt><dd id="summaryActivity">—</dd></div>
+          </dl>
+          <button class="btn btn-primary btn-wide" id="restartBtn" type="button">重新開始</button>
+        </section>
+      </article>
+
+      <footer class="page-footer"><span>Invitation Demo</span><span id="stepLabel">01 / 05</span></footer>
+    </main>
+
+    <script src="./script.js"></script>
+  </body>
+</html>

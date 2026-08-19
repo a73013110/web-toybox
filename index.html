@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="收集輕量、好玩又能直接在瀏覽器開啟的網頁小作品。">
+    <title>Web Toybox — 網頁玩具箱</title>
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./shared/base.css">
+    <link rel="stylesheet" href="./style.css">
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="./" aria-label="Web Toybox 首頁">WEB TOYBOX</a>
+      <span class="edition">2026 / 01</span>
+    </header>
+
+    <main>
+      <section class="hero" aria-labelledby="page-title">
+        <p class="hero-index" aria-hidden="true">01</p>
+        <div class="hero-copy">
+          <p class="eyebrow">A SMALL COLLECTION OF WEB EXPERIMENTS</p>
+          <h1 id="page-title">把靈感，做成<br>可以玩的網頁。</h1>
+          <p class="intro">這裡收藏不用安裝、打開就能玩的瀏覽器小作品。每一件都用原生 HTML、CSS 與 JavaScript 製作。</p>
+        </div>
+      </section>
+
+      <section class="collection" aria-labelledby="collection-title">
+        <div class="section-heading">
+          <h2 id="collection-title">作品目錄</h2>
+          <p>1 件作品</p>
+        </div>
+
+        <article class="project-card">
+          <div class="project-number" aria-hidden="true">01</div>
+          <div class="project-details">
+            <p class="project-type">INTERACTIVE CARD</p>
+            <h3>Invitation Card</h3>
+            <p>用五個小步驟，完成一張專屬的約會邀請。包含日期、活動選擇與行程確認。</p>
+          </div>
+          <a class="project-link" href="./pages/invitation-card/">
+            開始體驗
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M5 12h14M13 6l6 6-6 6"/>
+            </svg>
+          </a>
+        </article>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <span>WEB TOYBOX</span>
+      <span>BUILT WITH HTML · CSS · JS</span>
+    </footer>
+  </body>
+</html>
