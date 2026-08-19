@@ -31,9 +31,31 @@
       <span>作品目錄</span>
     </a>
 
+    <div class="name-gate" id="nameGate" role="dialog" aria-modal="true" aria-labelledby="nameGateTitle" hidden>
+      <form class="name-panel" id="nameForm" novalidate>
+        <div class="mark" aria-hidden="true">
+          <svg viewBox="0 0 34 34" fill="none">
+            <rect x="4" y="4" width="26" height="26"/>
+            <rect x="9" y="9" width="16" height="16" transform="rotate(45 17 17)"/>
+          </svg>
+        </div>
+        <p class="eyebrow">Before We Begin</p>
+        <h2 id="nameGateTitle">該怎麼稱呼你？</h2>
+        <p class="sub">填入姓名或喜歡的稱呼，再打開這張邀請卡。</p>
+        <label class="name-label" for="inviteeName">姓名或稱呼</label>
+        <input class="name-input" id="inviteeName" name="inviteeName" type="text" maxlength="40" autocomplete="name" aria-describedby="nameError" required>
+        <p class="field-error" id="nameError" aria-live="polite"></p>
+        <button class="btn btn-primary btn-wide" type="submit">開始</button>
+      </form>
+    </div>
+
     <main class="stage">
       <article class="card" id="card" aria-label="邀請卡互動流程">
         <div class="progress" aria-hidden="true"><span id="progressBar"></span></div>
+        <button class="step-back" id="previousBtn" type="button" hidden aria-label="回到上一步">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5m6-6-6 6 6 6"/></svg>
+          <span>上一步</span>
+        </button>
 
         <section class="scene active" id="scene1" data-step="1" aria-labelledby="scene1Title">
           <div class="mark" aria-hidden="true">
@@ -43,7 +65,7 @@
             </svg>
           </div>
           <p class="eyebrow">Private Invitation</p>
-          <h1 id="scene1Title">你願意跟我<br>出去嗎？</h1>
+          <h1 id="scene1Title"><span class="invitee-name" id="inviteeNameLabel" hidden></span>你願意跟我<br>出去嗎？</h1>
           <p class="sub"><span class="sub-inner" id="subText" aria-live="polite">誠摯邀請，共度一段時光</span></p>
           <div class="divider" aria-hidden="true"></div>
           <div class="button-stack">
@@ -165,6 +187,15 @@
                     <span class="option-copy"><b>未來藍圖</b><small>不急著定答案，先把想像攤開聊。</small></span>
                   </span>
                 </label>
+                <div class="activity-option custom-activity-option">
+                  <input id="customActivityToggle" type="checkbox" name="activities" value="__custom__">
+                  <label class="option-card" for="customActivityToggle">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg>
+                    <span class="option-copy"><b>自己填寫</b><small>把你真正想做的事加進來。</small></span>
+                  </label>
+                  <label class="sr-only" for="customActivityInput">自訂活動</label>
+                  <input class="custom-activity-input" id="customActivityInput" type="text" maxlength="50" placeholder="例如：一起看展" autocomplete="off">
+                </div>
               </div>
             </fieldset>
             <div class="selection-status">

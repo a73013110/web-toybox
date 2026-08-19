@@ -7,8 +7,15 @@ const mesh = document.getElementById('mesh');
 const ambientDots = document.getElementById('ambientDots');
 const ambientShapes = document.getElementById('ambientShapes');
 const card = document.getElementById('card');
+const stage = document.querySelector('.stage');
 const progressBar = document.getElementById('progressBar');
 const stepLabel = document.getElementById('stepLabel');
+const previousBtn = document.getElementById('previousBtn');
+const nameGate = document.getElementById('nameGate');
+const nameForm = document.getElementById('nameForm');
+const inviteeNameInput = document.getElementById('inviteeName');
+const nameError = document.getElementById('nameError');
+const inviteeNameLabel = document.getElementById('inviteeNameLabel');
 const yesBtn = document.getElementById('yesBtn');
 const noBtn = document.getElementById('noBtn');
 const subText = document.getElementById('subText');
@@ -19,6 +26,8 @@ const timingError = document.getElementById('timingError');
 const toScene4 = document.getElementById('toScene4');
 const activityForm = document.getElementById('activityForm');
 const activityInputs = [...document.querySelectorAll('input[name="activities"]')];
+const customActivityToggle = document.getElementById('customActivityToggle');
+const customActivityInput = document.getElementById('customActivityInput');
 const activityError = document.getElementById('activityError');
 const toScene5 = document.getElementById('toScene5');
 const selectionCount = document.getElementById('selectionCount');
@@ -30,7 +39,16 @@ const restartBtn = document.getElementById('restartBtn');
 // State / Configuration
 // ========================================
 
-const state = { currentStep: 1, dodgeCount: 0, chosenTiming: '', chosenActivities: [], textToken: 0 };
+const query = new URLSearchParams(window.location.search);
+const sceneOrder = ['scene1', 'scene2', 'scene3', 'scene4', 'scene5'];
+const state = {
+  currentStep: 1,
+  dodgeCount: 0,
+  chosenTiming: '',
+  chosenActivities: [],
+  inviteeName: query.get('invite')?.trim() || '',
+  textToken: 0
+};
 const FORMSPREE_ENDPOINT = 'https://formspree.io/f/xnpaoyer';
 const declineReactions = [
   { message: '再考慮一下嘛，飲料我請', label: '你確定？' },
@@ -119,8 +137,54 @@ function showScene(id) {
   });
   progressBar.style.width = `${step * 20}%`;
   stepLabel.textContent = `${String(step).padStart(2, '0')} / 05`;
+  previousBtn.hidden = step === 1; // 第一頁就是邀請流程的起點，不再顯示上一步。
   focusScene(nextScene);
 }
+
+previousBtn.addEventListener('click', () => {
+  const currentIndex = sceneOrder.indexOf(`scene${state.currentStep}`);
+  if (currentIndex > 0) showScene(sceneOrder[currentIndex - 1]); // 保留已填內容並回到前一頁。
+});
+
+// ========================================
+// Invitee Name
+// ========================================
+
+function applyInviteeName(name) {
+  state.inviteeName = name.trim();
+  inviteeNameLabel.textContent = `${state.inviteeName}，`;
+  inviteeNameLabel.hidden = !state.inviteeName; // 姓名只透過 textContent 寫入，避免注入 HTML。
+}
+
+if (state.inviteeName) {
+  applyInviteeName(state.inviteeName);
+} else {
+  nameGate.hidden = false;
+  stage.inert = true; // 輸入稱呼前，暫時禁止操作後方的邀請卡。
+  document.body.classList.add('name-gate-open');
+  window.setTimeout(() => inviteeNameInput.focus(), 0);
+}
+
+nameForm.addEventListener('submit', (event) => {
+  event.preventDefault();
+  const name = inviteeNameInput.value.trim();
+  if (!name) {
+    nameError.textContent = '請填入姓名或稱呼。';
+    inviteeNameInput.focus();
+    return;
+  }
+
+  applyInviteeName(name);
+  nameError.textContent = '';
+  nameGate.hidden = true;
+  stage.inert = false;
+  document.body.classList.remove('name-gate-open');
+  focusScene(document.getElementById('scene1'));
+});
+
+inviteeNameInput.addEventListener('input', () => {
+  if (inviteeNameInput.value.trim()) nameError.textContent = '';
+});
 
 // ========================================
 // Invitation
@@ -188,20 +252,38 @@ timingForm.addEventListener('submit', (event) => {
   showScene('scene4');
 });
 
-activityInputs.forEach((input) => {
-  input.addEventListener('change', () => {
-    // 重新收集所有勾選值，讓取消選取時狀態也保持正確。
-    state.chosenActivities = activityInputs.filter((item) => item.checked).map((item) => item.value);
-    const count = state.chosenActivities.length;
-    toScene5.disabled = count === 0;
-    toScene5.textContent = count > 0 ? `確認 ${count} 項選擇` : '確認選擇';
-    selectionCount.textContent = count > 0 ? `已選擇 ${count} 項` : '尚未選擇';
-    activityError.textContent = '';
-  });
+function updateActivities() {
+  const presetActivities = activityInputs
+    .filter((item) => item.checked && item !== customActivityToggle)
+    .map((item) => item.value);
+  const customActivity = customActivityInput.value.trim();
+
+  // 自訂項目只有在勾選且填有內容時才算入有效選擇。
+  state.chosenActivities = customActivityToggle.checked && customActivity
+    ? [...presetActivities, customActivity]
+    : presetActivities;
+
+  const count = state.chosenActivities.length;
+  const customIncomplete = customActivityToggle.checked && !customActivity;
+  toScene5.disabled = count === 0 || customIncomplete;
+  toScene5.textContent = count > 0 ? `確認 ${count} 項選擇` : '確認選擇';
+  selectionCount.textContent = count > 0 ? `已選擇 ${count} 項` : '尚未選擇';
+  activityError.textContent = customIncomplete ? '請填寫自訂項目。' : '';
+}
+
+activityInputs.forEach((input) => input.addEventListener('change', updateActivities));
+
+customActivityInput.addEventListener('focus', () => {
+  customActivityToggle.checked = true; // 點入文字欄時自動選取「自己填寫」。
+  updateActivities();
+});
+
+customActivityInput.addEventListener('input', () => {
+  customActivityToggle.checked = Boolean(customActivityInput.value.trim());
+  updateActivities();
 });
 
 async function sendInvitationResult() {
-  const query = new URLSearchParams(window.location.search);
   const response = await fetch(FORMSPREE_ENDPOINT, {
     method: 'POST',
     headers: {
@@ -209,7 +291,7 @@ async function sendInvitationResult() {
       Accept: 'application/json' // 要求 Formspree 回傳 JSON，方便判斷傳送結果。
     },
     body: JSON.stringify({
-      invite: query.get('invite') || '未指定',
+      invite: state.inviteeName || '未指定',
       timing: state.chosenTiming,
       activities: state.chosenActivities.join('、'),
       submittedAt: new Date().toLocaleString('zh-TW'),
@@ -224,6 +306,11 @@ async function sendInvitationResult() {
 
 activityForm.addEventListener('submit', async (event) => {
   event.preventDefault();
+  if (customActivityToggle.checked && !customActivityInput.value.trim()) {
+    activityError.textContent = '請填寫自訂項目。';
+    customActivityInput.focus();
+    return;
+  }
   if (state.chosenActivities.length === 0) {
     activityError.textContent = '請至少選擇一個項目。';
     activityInputs[0]?.focus();
@@ -283,6 +370,7 @@ restartBtn.addEventListener('click', () => {
   state.textToken += 1;
   timingForm.reset();
   activityForm.reset();
+  customActivityInput.value = '';
   timingError.textContent = '';
   activityError.textContent = '';
   toScene4.disabled = true;
