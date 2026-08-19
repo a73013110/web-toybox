@@ -34,6 +34,7 @@ const activityError = document.getElementById('activityError');
 const toScene5 = document.getElementById('toScene5');
 const selectionCount = document.getElementById('selectionCount');
 const confirmationStatus = document.getElementById('confirmationStatus');
+const confirmationMessage = document.getElementById('confirmationMessage');
 const summaryTiming = document.getElementById('summaryTiming');
 const summaryActivity = document.getElementById('summaryActivity');
 const restartBtn = document.getElementById('restartBtn');
@@ -56,6 +57,7 @@ const state = {
 };
 const GOOGLE_SHEETS_ENDPOINT = 'https://script.google.com/macros/s/AKfycbxuIIPk4q0qd5EoHOBAZe606OrZtzo1m3gychjEGSfsaqxTzIY8RFMYS3097yUpu_gq/exec';
 const SUBMISSION_TIMEOUT_MS = 30000; // Google Apps Script 冷啟動可能超過原本的 12 秒，避免資料已寫入卻被誤判失敗。
+const SUBMISSION_FEEDBACK_GRACE_MS = 1200; // 先捕捉常見的即時斷線；Google 回應較慢時不阻擋完成畫面。
 const declineReactions = [
   { message: '再考慮一下嘛，飲料我請', label: '你確定？' },
   { message: '這可能只是你的手滑了一下', label: '剛剛不算' },
@@ -330,11 +332,38 @@ async function sendInvitationResult() {
   }
 }
 
+function waitForSubmissionFeedback() {
+  const submission = sendInvitationResult();
+  let feedbackSettled = false;
+
+  return new Promise((resolve, reject) => {
+    const graceId = window.setTimeout(() => {
+      feedbackSettled = true;
+      resolve(); // 寫入通常已在一秒內完成，不再等待 Apps Script 跨網域結果頁。
+    }, SUBMISSION_FEEDBACK_GRACE_MS);
+
+    submission.then(() => {
+      if (feedbackSettled) return;
+      feedbackSettled = true;
+      window.clearTimeout(graceId);
+      resolve();
+    }, (error) => {
+      if (feedbackSettled) {
+        console.error('Google Sheet 延遲回應失敗：', error);
+        return;
+      }
+      feedbackSettled = true;
+      window.clearTimeout(graceId);
+      reject(error); // 一開始就偵測到斷線時，仍讓使用者可以重試。
+    });
+  });
+}
+
 let confirmationToken = 0;
 
 async function playConfirmationRitual() {
   const currentToken = ++confirmationToken;
-  const delay = reduceMotion.matches ? 350 : 720;
+  const delay = reduceMotion.matches ? 200 : 480; // 完整過場約兩秒，不讓快速送出變成額外等待。
   confirmationStatus.hidden = false;
   activityFieldset.disabled = true; // 過場期間固定本次選擇，避免送出內容與最後摘要不一致。
   toScene5.classList.add('is-confirming');
@@ -343,7 +372,7 @@ async function playConfirmationRitual() {
 
   for (const message of confirmationReactions) {
     if (currentToken !== confirmationToken) return; // 送出失敗或流程重設後，停止舊的等待文字。
-    confirmationStatus.textContent = message;
+    confirmationMessage.textContent = message;
     await new Promise((resolve) => window.setTimeout(resolve, delay));
   }
 }
@@ -351,7 +380,7 @@ async function playConfirmationRitual() {
 function resetConfirmationRitual() {
   confirmationToken += 1; // 讓仍在等待中的舊流程立即失效。
   confirmationStatus.hidden = true;
-  confirmationStatus.textContent = '';
+  confirmationMessage.textContent = '';
   activityFieldset.disabled = false;
   toScene5.classList.remove('is-confirming');
   toScene5.removeAttribute('aria-busy');
@@ -376,8 +405,8 @@ activityForm.addEventListener('submit', async (event) => {
 
   try {
     await Promise.all([
-      sendInvitationResult(), // 在背景寫入 Google Sheet，不向填寫者顯示技術性的傳送狀態。
-      playConfirmationRitual() // 保留一段有趣的行程確認過場，避免畫面瞬間跳轉。
+      waitForSubmissionFeedback(), // 寫入繼續在背景完成，畫面不等待 Apps Script 的跨網域重新導向。
+      playConfirmationRitual() // 以約兩秒的動態過場提供持續回饋，避免使用者以為頁面沒有反應。
     ]);
     summaryTiming.textContent = state.chosenTiming;
     summaryActivity.textContent = state.chosenActivities.join('、');

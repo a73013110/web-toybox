@@ -10,7 +10,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="../../shared/base.css">
-    <link rel="stylesheet" href="./style.css">
+    <link rel="stylesheet" href="./style.css?v=2">
   </head>
   <body>
     <div class="grid-overlay" aria-hidden="true"></div>
@@ -202,7 +202,10 @@
               <p id="selectionCount" aria-live="polite">尚未選擇</p>
               <p class="field-error" id="activityError" aria-live="polite"></p>
             </div>
-            <p class="confirmation-status" id="confirmationStatus" role="status" aria-live="polite" hidden></p>
+            <div class="confirmation-status" id="confirmationStatus" role="status" aria-live="polite" hidden>
+              <span class="confirmation-orbit" aria-hidden="true"></span>
+              <span class="confirmation-message" id="confirmationMessage"></span>
+            </div>
             <button class="btn btn-primary btn-wide" id="toScene5" type="submit" disabled>確認選擇</button>
           </form>
         </section>
@@ -228,6 +231,6 @@
       <footer class="page-footer"><span>Invitation Demo</span><span id="stepLabel">01 / 05</span></footer>
     </main>
 
-    <script src="./script.js?v=2"></script> <!-- 更新版本參數，避免瀏覽器沿用舊的 12 秒逾時邏輯。 -->
+    <script src="./script.js?v=3"></script> <!-- 更新版本參數，避免瀏覽器沿用舊的等待流程。 -->
   </body>
 </html>
