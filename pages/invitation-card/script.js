@@ -31,6 +31,7 @@ const restartBtn = document.getElementById('restartBtn');
 // ========================================
 
 const state = { currentStep: 1, dodgeCount: 0, chosenTiming: '', chosenActivities: [], textToken: 0 };
+const FORMSPREE_ENDPOINT = 'https://formspree.io/f/xnpaoyer';
 const declineReactions = [
   { message: '再考慮一下嘛，飲料我請', label: '你確定？' },
   { message: '這可能只是你的手滑了一下', label: '剛剛不算' },
@@ -198,17 +199,53 @@ activityInputs.forEach((input) => {
     activityError.textContent = '';
   });
 });
-activityForm.addEventListener('submit', (event) => {
+
+async function sendInvitationResult() {
+  const query = new URLSearchParams(window.location.search);
+  const response = await fetch(FORMSPREE_ENDPOINT, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json' // 要求 Formspree 回傳 JSON，方便判斷傳送結果。
+    },
+    body: JSON.stringify({
+      invite: query.get('invite') || '未指定',
+      timing: state.chosenTiming,
+      activities: state.chosenActivities.join('、'),
+      submittedAt: new Date().toLocaleString('zh-TW'),
+      page: window.location.href
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error(`Formspree 傳送失敗：${response.status}`); // 交給送出流程顯示重試訊息。
+  }
+}
+
+activityForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   if (state.chosenActivities.length === 0) {
     activityError.textContent = '請至少選擇一個項目。';
     activityInputs[0]?.focus();
     return;
   }
-  summaryTiming.textContent = state.chosenTiming;
-  summaryActivity.textContent = state.chosenActivities.join('、');
-  showScene('scene5');
-  burst(20);
+
+  toScene5.disabled = true;
+  toScene5.textContent = '正在傳送…';
+  activityError.textContent = '';
+
+  try {
+    await sendInvitationResult(); // 確認 Formspree 收到結果後，才顯示完成畫面。
+    summaryTiming.textContent = state.chosenTiming;
+    summaryActivity.textContent = state.chosenActivities.join('、');
+    showScene('scene5');
+    burst(20);
+  } catch (error) {
+    console.error(error);
+    activityError.textContent = '結果傳送失敗，請檢查網路後再試一次。';
+    toScene5.disabled = false;
+    toScene5.textContent = `確認 ${state.chosenActivities.length} 項選擇`;
+  }
 });
 
 // ========================================
