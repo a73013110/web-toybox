@@ -29,7 +29,13 @@ const restartBtn = document.getElementById('restartBtn');
 // ========================================
 
 const state = { currentStep: 1, dodgeCount: 0, chosenActivity: '', textToken: 0 };
-const messages = ['再考慮一下嘛', '真的要拒絕嗎？', '我會等你的', '拜託考慮一下', '好啦，不勉強……'];
+const declineReactions = [
+  { message: '再考慮一下嘛，飲料我請', label: '你確定？' },
+  { message: '這可能只是你的手滑了一下', label: '剛剛不算' },
+  { message: '拒絕鍵開始懷疑自己的存在', label: '再想三秒' },
+  { message: '它正在嘗試低調離開現場', label: '怎麼還在' },
+  { message: '好啦，不勉強。邀請會一直保留', label: '本按鈕已下班' }
+];
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
 function toLocalISODate(date) {
@@ -108,10 +114,25 @@ function setSubText(text) {
 }
 
 function declineInvitation() {
-  if (state.dodgeCount >= messages.length) return;
-  setSubText(messages[state.dodgeCount]);
+  if (state.dodgeCount >= declineReactions.length) return;
+
+  const reaction = declineReactions[state.dodgeCount];
+  setSubText(reaction.message);
+  noBtn.textContent = reaction.label;
   state.dodgeCount += 1;
-  if (state.dodgeCount === messages.length) noBtn.disabled = true;
+
+  // 每次婉拒都讓按鈕換位置，也讓「願意」悄悄更有存在感。
+  const direction = state.dodgeCount % 2 === 0 ? -1 : 1;
+  const distance = 18 + state.dodgeCount * 8;
+  noBtn.style.setProperty('--dodge-x', `${direction * distance}px`);
+  noBtn.style.setProperty('--dodge-r', `${direction * (1 + state.dodgeCount * 0.6)}deg`);
+  yesBtn.style.setProperty('--yes-grow', String(1 + state.dodgeCount * 0.025));
+
+  card.classList.remove('is-teasing');
+  void card.offsetWidth;
+  card.classList.add('is-teasing');
+
+  if (state.dodgeCount === declineReactions.length) noBtn.disabled = true;
 }
 
 yesBtn.addEventListener('click', () => {
@@ -199,6 +220,11 @@ restartBtn.addEventListener('click', () => {
   toScene4.disabled = true;
   toScene5.disabled = true;
   noBtn.disabled = false;
+  noBtn.textContent = '先不要';
+  noBtn.style.removeProperty('--dodge-x');
+  noBtn.style.removeProperty('--dodge-r');
+  yesBtn.style.removeProperty('--yes-grow');
+  card.classList.remove('is-teasing');
   subText.classList.remove('fading');
   subText.textContent = '誠摯邀請，共度一段時光';
   showScene('scene1');

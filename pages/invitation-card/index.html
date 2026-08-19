@@ -39,7 +39,7 @@
           <div class="divider" aria-hidden="true"></div>
           <div class="button-stack">
             <button class="btn btn-primary" id="yesBtn" type="button">願意</button>
-            <button class="btn btn-link" id="noBtn" type="button">先不要</button>
+            <button class="btn btn-link" id="noBtn" type="button" aria-describedby="subText">先不要</button>
           </div>
         </section>
 
@@ -52,7 +52,7 @@
           </div>
           <p class="eyebrow">Confirmed</p>
           <h2 id="scene2Title">太好了</h2>
-          <p class="sub">接下來，一起決定細節</p>
+          <p class="sub">太好了，拒絕按鈕也鬆了一口氣</p>
           <div class="divider" aria-hidden="true"></div>
           <button class="btn btn-primary btn-wide" id="toScene3" type="button">繼續</button>
         </section>
@@ -85,7 +85,7 @@
           </div>
           <p class="eyebrow">Step Two</p>
           <h2 id="scene4Title">選擇項目</h2>
-          <p class="sub">想一起做些什麼</p>
+          <p class="sub">選不出來，也可以理直氣壯地交給安排</p>
 
           <form id="activityForm" novalidate>
             <fieldset class="activity-fieldset">
@@ -117,6 +117,7 @@
             <div class="summary-row"><dt>日期</dt><dd id="summaryDate">—</dd></div>
             <div class="summary-row"><dt>項目</dt><dd id="summaryActivity">—</dd></div>
           </dl>
+          <p class="friendly-clause">友情提醒：臨時放鳥，罰請一杯飲料。</p>
           <button class="btn btn-primary btn-wide" id="restartBtn" type="button">重新開始</button>
         </section>
       </article>
