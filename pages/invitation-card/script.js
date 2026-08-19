@@ -26,12 +26,14 @@ const timingInputs = [...document.querySelectorAll('input[name="timing"]')];
 const timingError = document.getElementById('timingError');
 const toScene4 = document.getElementById('toScene4');
 const activityForm = document.getElementById('activityForm');
+const activityFieldset = activityForm.querySelector('fieldset');
 const activityInputs = [...document.querySelectorAll('input[name="activities"]')];
 const customActivityToggle = document.getElementById('customActivityToggle');
 const customActivityInput = document.getElementById('customActivityInput');
 const activityError = document.getElementById('activityError');
 const toScene5 = document.getElementById('toScene5');
 const selectionCount = document.getElementById('selectionCount');
+const confirmationStatus = document.getElementById('confirmationStatus');
 const summaryTiming = document.getElementById('summaryTiming');
 const summaryActivity = document.getElementById('summaryActivity');
 const restartBtn = document.getElementById('restartBtn');
@@ -52,13 +54,19 @@ const state = {
   lastSubmittedSignature: '',
   textToken: 0
 };
-const FORMSPREE_ENDPOINT = 'https://formspree.io/f/xnpaoyer';
+const GOOGLE_SHEETS_ENDPOINT = 'https://script.google.com/macros/s/AKfycbxuIIPk4q0qd5EoHOBAZe606OrZtzo1m3gychjEGSfsaqxTzIY8RFMYS3097yUpu_gq/exec';
 const declineReactions = [
   { message: '再考慮一下嘛，飲料我請', label: '你確定？' },
   { message: '這可能只是你的手滑了一下', label: '剛剛不算' },
   { message: '拒絕鍵開始懷疑自己的存在', label: '再想三秒' },
   { message: '它正在嘗試低調離開現場', label: '怎麼還在' },
   { message: '好啦，不勉強。邀請會一直保留', label: '本按鈕已下班' }
+];
+const confirmationReactions = [
+  '先把工作行程請到旁邊坐。',
+  '正在和臨時加班進行和平談判…',
+  '檢查放鳥罰則是否具有嚇阻力…',
+  '最後替這次出門蓋個章。'
 ];
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 const coarsePointer = window.matchMedia('(pointer: coarse)');
@@ -298,31 +306,54 @@ customActivityInput.addEventListener('input', () => {
 async function sendInvitationResult() {
   const controller = new AbortController();
   const timeoutId = window.setTimeout(() => controller.abort(), 12000);
-  let response;
 
   try {
-    response = await fetch(FORMSPREE_ENDPOINT, {
+    await fetch(GOOGLE_SHEETS_ENDPOINT, {
       method: 'POST',
+      mode: 'no-cors', // Apps Script 不提供可供前端讀取的跨網域回應，因此使用不透明回應送出資料。
       signal: controller.signal, // 避免網路無回應時讓按鈕永久停在傳送狀態。
       headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json' // 要求 Formspree 回傳 JSON，方便判斷傳送結果。
+        'Content-Type': 'text/plain;charset=utf-8' // 使用簡單請求，避免瀏覽器先送出 Apps Script 不支援的 CORS 預檢。
       },
       body: JSON.stringify({
+        schemaVersion: 1, // 只在資料結構改版時遞增，不與前端選項內容綁定。
         invite: state.inviteeName || '未指定',
+        declineCount: state.dodgeCount, // 記錄這次流程按下「先不要」及其變化按鈕的總次數。
         timing: state.chosenTiming,
-        activities: state.chosenActivities.join('、'),
-        submittedAt: new Date().toLocaleString('zh-TW'),
+        activities: state.chosenActivities, // 保留陣列格式，交由 Apps Script 驗證並寫入試算表。
         page: window.location.href
       })
     });
   } finally {
     window.clearTimeout(timeoutId);
   }
+}
 
-  if (!response.ok) {
-    throw new Error(`Formspree 傳送失敗：${response.status}`); // 交給送出流程顯示重試訊息。
+let confirmationToken = 0;
+
+async function playConfirmationRitual() {
+  const currentToken = ++confirmationToken;
+  const delay = reduceMotion.matches ? 350 : 720;
+  confirmationStatus.hidden = false;
+  activityFieldset.disabled = true; // 過場期間固定本次選擇，避免送出內容與最後摘要不一致。
+  toScene5.classList.add('is-confirming');
+  toScene5.setAttribute('aria-busy', 'true');
+  toScene5.textContent = '正在喬時間';
+
+  for (const message of confirmationReactions) {
+    if (currentToken !== confirmationToken) return; // 送出失敗或流程重設後，停止舊的等待文字。
+    confirmationStatus.textContent = message;
+    await new Promise((resolve) => window.setTimeout(resolve, delay));
   }
+}
+
+function resetConfirmationRitual() {
+  confirmationToken += 1; // 讓仍在等待中的舊流程立即失效。
+  confirmationStatus.hidden = true;
+  confirmationStatus.textContent = '';
+  activityFieldset.disabled = false;
+  toScene5.classList.remove('is-confirming');
+  toScene5.removeAttribute('aria-busy');
 }
 
 activityForm.addEventListener('submit', async (event) => {
@@ -343,16 +374,21 @@ activityForm.addEventListener('submit', async (event) => {
   activityError.textContent = '';
 
   try {
-    await sendInvitationResult(); // 確認 Formspree 收到結果後，才顯示完成畫面。
+    await Promise.all([
+      sendInvitationResult(), // 在背景寫入 Google Sheet，不向填寫者顯示技術性的傳送狀態。
+      playConfirmationRitual() // 保留一段有趣的行程確認過場，避免畫面瞬間跳轉。
+    ]);
     summaryTiming.textContent = state.chosenTiming;
     summaryActivity.textContent = state.chosenActivities.join('、');
     state.lastSubmittedSignature = getSelectionSignature();
+    resetConfirmationRitual();
     updateActivities(); // 回到選擇頁時顯示已送出，避免同一份結果重複提交。
     showScene('scene5');
     burst(20);
   } catch (error) {
     console.error(error);
-    activityError.textContent = '結果傳送失敗，請檢查網路後再試一次。';
+    resetConfirmationRitual();
+    activityError.textContent = '行程剛剛沒有排進去，請檢查網路後再試一次。';
     toScene5.disabled = false;
     toScene5.textContent = `確認 ${state.chosenActivities.length} 項選擇`;
   }
@@ -392,6 +428,7 @@ restartBtn.addEventListener('click', () => {
   state.chosenActivities = [];
   state.lastSubmittedSignature = '';
   state.textToken += 1;
+  resetConfirmationRitual();
   timingForm.reset();
   activityForm.reset();
   timingError.textContent = '';

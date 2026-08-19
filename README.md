@@ -24,17 +24,19 @@
 2. 確認邀請。
 3. 選擇「空檔暗號」。
 4. 複選想進行的活動。
-5. 將結果傳送至 Formspree 並顯示行程摘要。
+5. 將結果透過 Google Apps Script 傳送至 Google Sheet，並顯示行程摘要。
 
-完成送出後，Formspree 會記錄以下欄位：
+完成送出後，Google Sheet 會記錄以下欄位：
 
 | 欄位 | 說明 |
 | --- | --- |
 | `invite` | 分享網址中的對象代號；沒有提供時為 `未指定` |
 | `timing` | 對方選擇的空檔暗號 |
 | `activities` | 對方選擇的活動，以頓號分隔 |
-| `submittedAt` | 對方裝置產生的送出時間 |
+| `receivedAt` | Apps Script 寫入資料時的伺服器時間 |
 | `page` | 對方填寫時的完整頁面網址 |
+| `schemaVersion` | 前後端資料結構版本，目前為 `1` |
+| `declineCount` | 這次流程按下「先不要」及其變化按鈕的次數，目前範圍為 `0` 至 `5` |
 
 ## 分享邀請卡
 
@@ -48,7 +50,7 @@ https://a73013110.github.io/web-toybox/pages/invitation-card/
 
 ### 指定邀請對象
 
-在網址加入 `invite` 查詢參數，可讓 Formspree 結果帶上對象代號：
+在網址加入 `invite` 查詢參數，可讓 Google Sheet 結果帶上對象代號：
 
 ```text
 https://a73013110.github.io/web-toybox/pages/invitation-card/?invite=amy
@@ -81,7 +83,7 @@ git rev-parse --short HEAD
 
 | 參數 | 必填 | 用途 |
 | --- | --- | --- |
-| `invite` | 否 | 在 Formspree 結果中辨識邀請對象 |
+| `invite` | 否 | 在 Google Sheet 結果中辨識邀請對象 |
 | `v` | 否 | 標記分享版本，方便追蹤與產生不同的頁面網址 |
 
 > `v` 目前不會被 JavaScript 讀取，也不會改變頁面功能。它可作為版本識別，但無法嚴格保證 CSS 與 JavaScript 資源立即刷新；若要完整的快取失效策略，應替靜態資源檔名產生內容雜湊，或在資源網址上同步加入版本參數。
@@ -95,18 +97,35 @@ const url = `https://a73013110.github.io/web-toybox/pages/invitation-card/?invit
 
 ## 查看邀請結果
 
-1. 登入 [Formspree](https://formspree.io/)。
-2. 開啟 Invitation Card 對應的表單。
-3. 進入 **Submissions** 查看每次送出的內容。
-4. 如需 Email 通知，可在 Formspree 的表單設定中調整通知選項。
+1. 開啟綁定 Apps Script 的 Google Sheet。
+2. 進入 `responses` 工作表。
+3. 查看每次送出的伺服器時間、邀請對象、空檔暗號、活動、頁面網址、資料版本與「先不要」點擊次數。
 
-目前使用的 Endpoint 設定於 [`pages/invitation-card/script.js`](./pages/invitation-card/script.js)：
+目前使用的 Web App Endpoint 設定於 [`pages/invitation-card/script.js`](./pages/invitation-card/script.js)：
 
 ```js
-const FORMSPREE_ENDPOINT = 'https://formspree.io/f/xnpaoyer'; // 公開的表單收件端點。
+const GOOGLE_SHEETS_ENDPOINT = 'https://script.google.com/macros/s/.../exec'; // Apps Script 正式部署網址。
 ```
 
-Formspree Endpoint 本來就會出現在瀏覽器端程式碼中，不應視為私密金鑰；仍建議在 Formspree 後台啟用適合的垃圾訊息防護，並避免透過此表單收集密碼、證件號碼或其他敏感資料。
+Apps Script Web App 網址會出現在瀏覽器端程式碼中，不應視為私密金鑰。Web App 必須驗證欄位與限制長度，並避免透過此表單收集密碼、證件號碼或其他敏感資料。
+
+### 維護 Apps Script
+
+Apps Script 原始碼同步保存在 [`apps-script/invitation-card/Code.gs`](./apps-script/invitation-card/Code.gs)。更新後需將內容複製至 Google Apps Script，建立新部署版本，前端才會使用更新後的程式。
+
+試算表 ID 本身不是存取密碼，但會暴露文件識別資訊，因此不直接寫入公開儲存庫。請在 Apps Script 的「專案設定 → 指令碼屬性」新增：
+
+| 屬性 | 值 |
+| --- | --- |
+| `INVITATION_RESPONSES_SPREADSHEET_ID` | Google Sheet 網址中 `/d/` 與 `/edit` 之間的試算表檔案 ID |
+
+`responses` 工作表第一列應依序建立以下欄位：
+
+```text
+收件時間｜邀請對象｜空檔暗號｜活動｜頁面網址｜資料版本｜先不要點擊次數
+```
+
+Google Sheet 仍應保持私人，僅分享給需要查看結果的帳號。指令碼屬性只負責避免在 Git 中留下 ID，不能取代 Google Sheet 本身的權限設定。
 
 ## 專案結構
 
@@ -117,13 +136,16 @@ web-toybox/
 ├── favicon.svg                      # 網站圖示
 ├── LICENSE
 ├── README.md
+├── apps-script/
+│   └── invitation-card/
+│       └── Code.gs                  # Google Apps Script 後端原始碼
 ├── shared/
 │   └── base.css                     # 共用基礎樣式
 └── pages/
     └── invitation-card/
         ├── index.html               # 邀請卡結構
         ├── style.css                # 邀請卡樣式與動畫
-        └── script.js                # 互動狀態與 Formspree 送出流程
+        └── script.js                # 互動狀態與 Google Sheet 送出流程
 ```
 
 ## 本機開發
@@ -132,7 +154,7 @@ web-toybox/
 
 - 任一現代瀏覽器
 - Python 3，或其他可啟動靜態伺服器的工具
-- 網路連線：載入 Google Fonts 與測試 Formspree 時需要
+- 網路連線：載入 Google Fonts 與測試 Apps Script Web App 時需要
 
 ### 啟動本機伺服器
 
@@ -163,7 +185,7 @@ http://localhost:8000/pages/invitation-card/?invite=local-test
 - 首頁與邀請卡在桌面、窄螢幕下皆可正常顯示。
 - 鍵盤可以完成整個互動流程。
 - 未選擇時，按鈕和錯誤訊息狀態正確。
-- Formspree 傳送期間不能重複提交。
+- Google Sheet 傳送期間不能重複提交。
 - 傳送成功後才進入摘要畫面。
 - 模擬離線或錯誤 Endpoint 時會顯示重試訊息。
 - 啟用「減少動態效果」後不會出現不必要動畫。
@@ -222,8 +244,8 @@ pages/
 - 不要把 API 私鑰、存取權杖或帳號密碼放進前端檔案。
 - `invite` 與 `v` 都是使用者可修改的公開參數。
 - 分享網址中不要放真實姓名、Email、電話或其他敏感資訊。
-- `submittedAt` 來自填寫者裝置，只適合一般紀錄，不應作為稽核時間。
-- Formspree 是第三方服務；正式收集資料前，應確認其方案限制、資料保存與隱私設定符合需求。
+- 收件時間由 Apps Script 寫入，仍只適合一般紀錄，不應作為正式稽核時間。
+- Google Sheet 與 Apps Script 是第三方服務；正式收集資料前，應確認其配額、資料保存與隱私設定符合需求。
 
 ## 授權
 

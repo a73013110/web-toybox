@@ -147,6 +147,10 @@ h1, h2 { margin: 0 0 10px; color: var(--ink); font-family: "Cormorant Garamond",
 .selection-status { display: flex; align-items: center; justify-content: space-between; min-height: 28px; margin: 2px 0 5px; }
 .selection-status > p { margin-top: 0; margin-bottom: 0; }
 #selectionCount { color: var(--gold); font-size: 10px; font-weight: 600; letter-spacing: 0.06em; }
+.confirmation-status { min-height: 20px; margin: -1px 0 9px; color: var(--ink-soft); font-size: 11px; line-height: 1.6; }
+.confirmation-status[hidden] { display: none; }
+#toScene5.is-confirming { color: #fff; cursor: wait; background: var(--ink); box-shadow: 0 10px 24px rgba(20, 20, 20, 0.16); }
+#toScene5.is-confirming::after { animation: confirmationSweep 1.1s ease-in-out infinite; }
 
 .summary-box { margin: 24px 0 20px; padding: 12px 2px; text-align: left; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 .summary-row { display: flex; gap: 14px; align-items: baseline; padding: 8px 0; }
@@ -167,6 +171,7 @@ h1, h2 { margin: 0 0 10px; color: var(--ink); font-family: "Cormorant Garamond",
 @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes burst { to { opacity: 0; transform: translate(var(--tx), var(--ty)) rotate(var(--rot)) scale(0); } }
 @keyframes politeShake { 0%, 100% { transform: translateX(0); } 30% { transform: translateX(-3px) rotate(-0.35deg); } 65% { transform: translateX(3px) rotate(0.35deg); } }
+@keyframes confirmationSweep { 0% { left: -100%; } 65%, 100% { left: 100%; } }
 
 @media (max-width: 400px) {
   body { align-items: flex-start; padding: 62px 16px 20px; }
@@ -187,4 +192,5 @@ h1, h2 { margin: 0 0 10px; color: var(--ink); font-family: "Cormorant Garamond",
 @media (prefers-reduced-motion: reduce) {
   .mesh, .ambient-shapes { transition: none; }
   .aurora::before, .aurora::after, .shape { animation: none; }
+  #toScene5.is-confirming::after { animation: none; }
 }
