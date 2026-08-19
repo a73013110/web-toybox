@@ -55,6 +55,7 @@ const state = {
   textToken: 0
 };
 const GOOGLE_SHEETS_ENDPOINT = 'https://script.google.com/macros/s/AKfycbxuIIPk4q0qd5EoHOBAZe606OrZtzo1m3gychjEGSfsaqxTzIY8RFMYS3097yUpu_gq/exec';
+const SUBMISSION_TIMEOUT_MS = 30000; // Google Apps Script 冷啟動可能超過原本的 12 秒，避免資料已寫入卻被誤判失敗。
 const declineReactions = [
   { message: '再考慮一下嘛，飲料我請', label: '你確定？' },
   { message: '這可能只是你的手滑了一下', label: '剛剛不算' },
@@ -305,7 +306,7 @@ customActivityInput.addEventListener('input', () => {
 
 async function sendInvitationResult() {
   const controller = new AbortController();
-  const timeoutId = window.setTimeout(() => controller.abort(), 12000);
+  const timeoutId = window.setTimeout(() => controller.abort(), SUBMISSION_TIMEOUT_MS);
 
   try {
     await fetch(GOOGLE_SHEETS_ENDPOINT, {
@@ -388,7 +389,7 @@ activityForm.addEventListener('submit', async (event) => {
   } catch (error) {
     console.error(error);
     resetConfirmationRitual();
-    activityError.textContent = '行程剛剛沒有排進去，請檢查網路後再試一次。';
+    activityError.textContent = '回覆剛剛沒有送達，請檢查網路後再試一次。'; // 此功能只收集回覆，不會直接建立行事曆行程。
     toScene5.disabled = false;
     toScene5.textContent = `確認 ${state.chosenActivities.length} 項選擇`;
   }

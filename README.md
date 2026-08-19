@@ -122,7 +122,7 @@ Apps Script 原始碼同步保存在 [`apps-script/invitation-card/Code.gs`](./a
 `responses` 工作表第一列應依序建立以下欄位：
 
 ```text
-收件時間｜邀請對象｜空檔暗號｜活動｜頁面網址｜資料版本｜先不要點擊次數
+收件時間｜邀請對象｜先不要點擊次數｜空檔暗號｜活動｜頁面網址｜資料版本
 ```
 
 Google Sheet 仍應保持私人，僅分享給需要查看結果的帳號。指令碼屬性只負責避免在 Git 中留下 ID，不能取代 Google Sheet 本身的權限設定。
