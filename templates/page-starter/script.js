@@ -33,12 +33,21 @@ demoInput.addEventListener('input', () => {
 // 需要把資料寫進 Google Sheet 時
 // ========================================
 //
-// 目前每個作品各自呼叫 Apps Script。送出時要注意兩件事：
+// 1. 在 apps-script/ 建立 app-<作品名稱>.gs，實作 handle<作品名稱>(payload)
+// 2. 在 apps-script/main.gs 的 routeRequest() 與 supportedApps() 各加一筆
+// 3. 重新部署（管理部署作業 → 編輯 → 版本：新版本，網址不會變）
+// 4. 前端改用下面的寫法，並把 <script> 改成 type="module"
 //
-// 1. 用一般的 CORS 請求，並維持「簡單請求」
-//    （Content-Type: text/plain;charset=utf-8），
-//    否則瀏覽器會先送出 Apps Script 不支援的預檢而失敗。
-// 2. Apps Script 驗證失敗時仍回傳 HTTP 200，
-//    因此必須檢查 body 的 ok 欄位才知道有沒有真的寫入。
+// import { submitToAppsScript, describeSubmitError } from '../../shared/api.js';
 //
-// 可參考 pages/invitation-card/script.js 的 sendInvitationResult()。
+// try {
+//   await submitToAppsScript('page-starter', { schemaVersion: 1, value });
+//   // 成功：Apps Script 已確認寫入
+// } catch (error) {
+//   console.error(error);
+//   demoError.textContent = describeSubmitError(error);
+// }
+//
+// submitToAppsScript 會處理逾時、跨網域與回應判讀。
+// 送出期間記得停用按鈕，失敗時再解鎖讓使用者重試。
+// 可參考 pages/invitation-card/script.js 的完整流程。

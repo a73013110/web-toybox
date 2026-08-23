@@ -1,3 +1,5 @@
+import { submitToAppsScript, describeSubmitError } from '../../shared/api.js';
+
 // ========================================
 // DOM
 // ========================================
@@ -55,8 +57,6 @@ const state = {
   lastSubmittedSignature: '',
   textToken: 0
 };
-const GOOGLE_SHEETS_ENDPOINT = 'https://script.google.com/macros/s/AKfycbxuIIPk4q0qd5EoHOBAZe606OrZtzo1m3gychjEGSfsaqxTzIY8RFMYS3097yUpu_gq/exec';
-const SUBMISSION_TIMEOUT_MS = 30000; // Google Apps Script 冷啟動可能超過十秒，避免資料已寫入卻被誤判失敗。
 const MIN_CONFIRMATION_MS = 1900; // 送出很快時仍讓過場走完，避免畫面一閃而過。
 const declineReactions = [
   { message: '再考慮一下嘛，飲料我請', label: '你確定？' },
@@ -306,43 +306,15 @@ customActivityInput.addEventListener('input', () => {
   updateActivities();
 });
 
-async function sendInvitationResult() {
-  const controller = new AbortController();
-  const timeoutId = window.setTimeout(() => controller.abort(), SUBMISSION_TIMEOUT_MS);
-
-  try {
-    // Apps Script 的 /exec 會 302 轉到 script.googleusercontent.com，
-    // 最終回應帶有 Access-Control-Allow-Origin: *，因此可以直接讀取結果。
-    const response = await fetch(GOOGLE_SHEETS_ENDPOINT, {
-      method: 'POST',
-      signal: controller.signal, // 避免網路無回應時讓按鈕永久停在傳送狀態。
-      redirect: 'follow',
-      headers: {
-        'Content-Type': 'text/plain;charset=utf-8' // 使用簡單請求，避免瀏覽器先送出 Apps Script 不支援的 CORS 預檢。
-      },
-      body: JSON.stringify({
-        schemaVersion: 1, // 只在資料結構改版時遞增，不與前端選項內容綁定。
-        invite: state.inviteeName || '未指定',
-        declineCount: state.dodgeCount, // 記錄這次流程按下「先不要」及其變化按鈕的總次數。
-        timing: state.chosenTiming,
-        activities: state.chosenActivities, // 保留陣列格式，交由 Apps Script 驗證並寫入試算表。
-        page: window.location.href
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
-    }
-
-    const result = await response.json();
-
-    // Apps Script 驗證失敗時仍回傳 200，必須看 ok 欄位才知道是否真的寫入。
-    if (!result?.ok) {
-      throw new Error(result?.error || 'unknown_error');
-    }
-  } finally {
-    window.clearTimeout(timeoutId);
-  }
+function sendInvitationResult() {
+  return submitToAppsScript('invitation-card', {
+    schemaVersion: 1, // 只在資料結構改版時遞增，不與前端選項內容綁定。
+    invite: state.inviteeName || '未指定',
+    declineCount: state.dodgeCount, // 記錄這次流程按下「先不要」及其變化按鈕的總次數。
+    timing: state.chosenTiming,
+    activities: state.chosenActivities, // 保留陣列格式，交由 Apps Script 驗證並寫入試算表。
+    page: window.location.href
+  });
 }
 
 
@@ -415,10 +387,7 @@ activityForm.addEventListener('submit', async (event) => {
   } catch (error) {
     console.error(error);
     resetConfirmationRitual();
-    // 此功能只收集回覆，不會直接建立行事曆行程。
-    activityError.textContent = error.name === 'AbortError'
-      ? '等太久都沒有回應，請確認網路後再試一次。'
-      : '回覆剛剛沒有送達，請檢查網路後再試一次。';
+    activityError.textContent = describeSubmitError(error); // 此功能只收集回覆，不會直接建立行事曆行程。
     toScene5.disabled = false;
     toScene5.textContent = `確認 ${state.chosenActivities.length} 項選擇`;
   }

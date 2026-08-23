@@ -39,12 +39,17 @@ web-toybox/
 │   ├── tokens.css                   # 設計 token：色票、字型、版面尺寸
 │   ├── base.css                     # 全域重設與無障礙基礎
 │   ├── ui.css                       # 共用元件：按鈕、標籤、輸入欄、返回連結
-│   └── projects.js                  # 作品清單（新增作品時唯一要改的資料）
+│   ├── projects.js                  # 作品清單（新增作品時唯一要改的資料）
+│   ├── config.js                    # 後端部署網址與逾時設定
+│   └── api.js                       # 呼叫 Apps Script 的共用送出層
 ├── templates/
 │   └── page-starter/                # 新作品骨架，複製到 pages/ 後改名即可
-├── apps-script/                     # Google Apps Script 後端原始碼
-│   ├── README.md
-│   └── invitation-card/Code.gs
+├── apps-script/                     # Google Apps Script 後端（單一專案，所有作品共用）
+│   ├── README.md                    # 部署與維護手冊
+│   ├── appsscript.json
+│   ├── main.gs                      # 入口：路由、健康檢查、節流
+│   ├── lib.gs                       # 共用：驗證、試算表寫入、防公式注入
+│   └── app-invitation-card.gs       # 邀請卡的處理函式
 └── pages/
     └── invitation-card/
         ├── README.md
@@ -64,6 +69,20 @@ web-toybox/
 | `shared/ui.css` | `.btn` / `.btn-primary` / `.btn-link` / `.btn-wide`、`.eyebrow`、`.mark`、`.divider`、`.input`、`.field-error`、`.sr-only`、`.back-link` |
 
 作品專屬的變化寫進該作品自己的 `style.css`，不要改共用檔。
+
+需要把資料送到後端時，一律走 `shared/api.js` 的 `submitToAppsScript()`，不要在各作品自己寫 `fetch`：
+
+```js
+import { submitToAppsScript, describeSubmitError } from '../../shared/api.js';
+
+try {
+  await submitToAppsScript('my-toy', { schemaVersion: 1, value });
+} catch (error) {
+  errorLabel.textContent = describeSubmitError(error);
+}
+```
+
+它已處理逾時、跨網域與回應判讀。使用時 `<script>` 需要加上 `type="module"`。
 
 ## 新增作品
 
@@ -91,7 +110,9 @@ web-toybox/
 
 靜態網站沒有後端。需要寫入 Google Sheet、保管 API 金鑰之類的能力時，由 Google Apps Script Web App 承接。
 
-部署方式、指令碼屬性、跨網域呼叫方式與已知限制（不支援串流、冷啟動、配額）見 [apps-script/README.md](./apps-script/README.md)。
+**所有作品共用一個 Apps Script 專案與一組部署網址**，靠請求中的 `app` 欄位分流。新增作品不需要再開新專案、也不需要再記一組網址。
+
+部署步驟、日常維護、新增作品要改哪裡、除錯方式與已知限制（不支援串流、冷啟動、配額、無法辨識用戶端 IP）見 [apps-script/README.md](./apps-script/README.md)。
 
 ## 本機開發
 
