@@ -600,10 +600,32 @@ describe('Deep Talk：用 AI 生題目', () => {
 
     assert.match(prompt, /金錢觀/);
     assert.match(prompt, /產生 7 個/);
-    assert.match(prompt, /交往中/);
+    // 用整行比對：句型規則裡也提到「交往中」，只比對詞會讓這個斷言失去意義。
+    assert.match(prompt, /關係階段：交往中/);
     assert.match(prompt, /碰到價值觀、過去的選擇與代價/, '應該附上該深度的定義');
     assert.match(prompt, /你怎麼看待借錢給朋友？/, '同主題的既有題目要當反例');
     assert.doesNotMatch(prompt, /你最近睡得好嗎/, '別的主題不必塞進去');
+  });
+
+  /*
+   * 句型規則是題目品質的關鍵：少了它，模型會寫出「你怎麼看待○○？」這種
+   * 當場答不出來的論說文題目。這一段被刪掉不會讓任何功能壞掉，所以特別測。
+   */
+  test('提示詞帶上句型規則與正反範例', () => {
+    const gs = makeAiHarness([], [geminiReply(['新的題目？'])]);
+
+    generate(gs);
+
+    const prompt = JSON.parse(gs.fetchCalls[0].body).contents[0].parts[0].text;
+
+    for (const pattern of ['情境假設', '二選一', '具體記憶', '尺度', '釘住抽象詞', '第三人稱代入']) {
+      assert.match(prompt, new RegExp(pattern), `應該列出「${pattern}」句型`);
+    }
+
+    assert.match(prompt, /禁止的句型/, '要明確擋掉論說文題型');
+    assert.match(prompt, /你怎麼看待○○？/, '要點名最常見的爛句型');
+    assert.match(prompt, /對照範例/, '成對範例比抽象規則有效，不能省');
+    assert.match(prompt, /存款到多少，你才會覺得自己是安全的？/, '要給改寫後的正例');
   });
 
   test('要求輸出 JSON 陣列', () => {
