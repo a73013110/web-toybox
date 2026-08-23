@@ -35,15 +35,22 @@ beforeEach(() => {
 const submit = (payload) => gs.post({ app: 'invitation-card', payload });
 
 describe('載入', () => {
-  test('三個 .gs 檔都被載入，lib.gs 在最前面', () => {
+  test('所有 .gs 檔都被載入，lib.gs 在最前面', () => {
     assert.equal(gs.loadedFiles[0], 'lib.gs');
-    assert.deepEqual([...gs.loadedFiles].sort(), ['app-invitation-card.gs', 'lib.gs', 'main.gs']);
+    assert.deepEqual(
+      [...gs.loadedFiles].sort(),
+      ['app-deep-talk.gs', 'app-invitation-card.gs', 'lib.gs', 'main.gs']
+    );
   });
 });
 
 describe('健康檢查', () => {
   test('doGet 列出目前支援的作品', () => {
-    assert.deepEqual(gs.get(), { ok: true, service: 'web-toybox', apps: ['invitation-card'] });
+    assert.deepEqual(gs.get(), {
+      ok: true,
+      service: 'web-toybox',
+      apps: ['invitation-card', 'deep-talk']
+    });
   });
 
   test('doGet 不會寫入任何資料', () => {

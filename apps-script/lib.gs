@@ -127,3 +127,106 @@ function withinRateLimit(app) {
 
   return count <= RATE_LIMIT_PER_MINUTE;
 }
+
+// ========================================
+// 快取
+// ========================================
+
+/*
+ * CacheService 每個 key 上限 100KB。中文在 UTF-8 佔 3 bytes，
+ * 因此以 30000 字為一塊，最壞情況約 90KB，仍在上限內。
+ */
+const CACHE_CHUNK_CHARS = 30000;
+
+/*
+ * 讀取先前快取的 JSON，沒有或已過期時回傳 null。
+ *
+ * 分塊儲存，任何一塊遺失就整份視為失效 —— 拼出半截 JSON 比重讀一次糟得多。
+ * 少一塊之後通常也過不了 JSON.parse，但明確地判斷比依賴解析失敗可靠。
+ */
+function readCachedJson(key) {
+  const cache = CacheService.getScriptCache();
+  const chunkCount = Number(cache.get(`${key}:chunks`));
+
+  if (!chunkCount) return null;
+
+  let text = '';
+
+  for (let index = 0; index < chunkCount; index += 1) {
+    const chunk = cache.get(`${key}:${index}`);
+
+    if (chunk === null) return null;
+
+    text += chunk;
+  }
+
+  try {
+    return JSON.parse(text);
+  } catch (error) {
+    return null;
+  }
+}
+
+function writeCachedJson(key, value, ttlSeconds) {
+  const text = JSON.stringify(value);
+  const entries = {};
+  let chunkCount = 0;
+
+  for (let start = 0; start < text.length; start += CACHE_CHUNK_CHARS) {
+    entries[`${key}:${chunkCount}`] = text.slice(start, start + CACHE_CHUNK_CHARS);
+    chunkCount += 1;
+  }
+
+  entries[`${key}:chunks`] = String(chunkCount);
+
+  CacheService.getScriptCache().putAll(entries, ttlSeconds);
+}
+
+function clearCachedJson(key) {
+  const cache = CacheService.getScriptCache();
+  const chunkCount = Number(cache.get(`${key}:chunks`)) || 0;
+  const keys = [`${key}:chunks`];
+
+  for (let index = 0; index < chunkCount; index += 1) {
+    keys.push(`${key}:${index}`);
+  }
+
+  cache.removeAll(keys);
+}
+
+// ========================================
+// 管理用動作
+// ========================================
+
+/*
+ * 驗證管理用密鑰。密鑰存在指令碼屬性，不寫進程式碼也不出現在前端。
+ * 用於清快取、觸發 AI 生成這類只有作者該執行的動作。
+ */
+function requireAdminKey(provided, keyProperty) {
+  const expected = PropertiesService.getScriptProperties().getProperty(keyProperty);
+
+  if (!expected) {
+    throw new Error(`缺少指令碼屬性：${keyProperty}`);
+  }
+
+  if (normalizeText(provided, 200) !== expected) {
+    throw requestError('unauthorized');
+  }
+}
+
+// ========================================
+// 其他
+// ========================================
+
+/** Fisher-Yates 洗牌，回傳新陣列，不動到原本的。 */
+function shuffled(items) {
+  const result = items.slice();
+
+  for (let i = result.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+
+  return result;
+}

@@ -8,7 +8,10 @@
  * 用法：
  *   const gs = createGatewayHarness({ properties: { MY_SHEET_ID: 'x' }, sheets: ['responses'] });
  *   gs.post({ app: 'my-toy', payload: {} });   // → 已解析的 JSON 回應
- *   gs.rows('responses');                      // → 寫入的列
+ *   gs.rows('responses');                      // → 工作表目前的內容
+ *
+ * 需要預先放資料的工作表（例如題庫）改用物件形式：
+ *   createGatewayHarness({ sheets: { questions: [['id', '題目'], ['q1', '你好嗎？']] } })
  */
 
 import { readFileSync, readdirSync } from 'node:fs';
@@ -23,8 +26,67 @@ const BUCKET_MS = 60_000;
 const DEFAULT_NOW = Math.floor(1_700_000_000_000 / BUCKET_MS) * BUCKET_MS;
 const DEFAULT_CACHE_TTL_SECONDS = 600; // 與 Apps Script CacheService 的預設值一致。
 
-export function createGatewayHarness({ properties = {}, sheets = [], now = DEFAULT_NOW } = {}) {
-  const written = new Map(sheets.map((name) => [name, []]));
+/*
+ * 預設用固定種子的偽亂數，讓有洗牌的邏輯（例如發牌）每次跑出同樣結果。
+ * 需要特定順序的測項可以自己傳一個 random 進來。
+ */
+function createSeededRandom(seed = 20260823) {
+  let state = seed >>> 0;
+
+  return () => {
+    state = (state * 1664525 + 1013904223) >>> 0;
+
+    return state / 4294967296;
+  };
+}
+
+/*
+ * 一張假的工作表。以二維陣列存內容，支援 Apps Script 常用的整段讀寫，
+ * 列與欄都是 1 起算，跟真的 Range 一致。
+ */
+function createFakeSheet(data) {
+  const columnCount = () => data.reduce((max, row) => Math.max(max, row.length), 0);
+
+  const range = (row, column, numRows, numColumns) => ({
+    getValues: () =>
+      Array.from({ length: numRows }, (_, r) =>
+        Array.from({ length: numColumns }, (_, c) => data[row - 1 + r]?.[column - 1 + c] ?? '')),
+
+    setValues: (values) => {
+      values.forEach((rowValues, r) => {
+        const target = (data[row - 1 + r] ||= []);
+
+        rowValues.forEach((value, c) => {
+          target[column - 1 + c] = value;
+        });
+      });
+    }
+  });
+
+  return {
+    appendRow: (values) => data.push([...values]),
+    getLastRow: () => data.length,
+    getLastColumn: columnCount,
+    getDataRange: () => range(1, 1, data.length, columnCount()),
+    getRange: range
+  };
+}
+
+export function createGatewayHarness({
+  properties = {},
+  sheets = [],
+  now = DEFAULT_NOW,
+  random = createSeededRandom()
+} = {}) {
+  const seeded = Array.isArray(sheets)
+    ? Object.fromEntries(sheets.map((name) => [name, []]))
+    : sheets;
+
+  // 深拷貝，讓同一份種子資料可以餵給多個 harness 而互不影響。
+  const tables = new Map(
+    Object.entries(seeded).map(([name, rows]) => [name, rows.map((row) => [...row])])
+  );
+
   let cache = {};
   let clock = now;
 
@@ -36,6 +98,25 @@ export function createGatewayHarness({ properties = {}, sheets = [], now = DEFAU
       return clock;
     }
   }
+
+  const scriptCache = {
+    get: (key) => {
+      const entry = cache[key];
+
+      return entry && entry.expiresAt > clock ? entry.value : null;
+    },
+    put: (key, value, ttlSeconds = DEFAULT_CACHE_TTL_SECONDS) => {
+      cache[key] = { value, expiresAt: clock + ttlSeconds * 1000 };
+    },
+    putAll: (entries, ttlSeconds = DEFAULT_CACHE_TTL_SECONDS) => {
+      for (const [key, value] of Object.entries(entries)) {
+        scriptCache.put(key, value, ttlSeconds);
+      }
+    },
+    removeAll: (keys) => {
+      for (const key of keys) delete cache[key];
+    }
+  };
 
   const sandbox = {
     console: { error() {}, log() {}, warn() {} },
@@ -55,8 +136,7 @@ export function createGatewayHarness({ properties = {}, sheets = [], now = DEFAU
 
     SpreadsheetApp: {
       openById: () => ({
-        getSheetByName: (name) =>
-          written.has(name) ? { appendRow: (values) => written.get(name).push(values) } : null
+        getSheetByName: (name) => (tables.has(name) ? createFakeSheet(tables.get(name)) : null)
       })
     },
 
@@ -64,20 +144,14 @@ export function createGatewayHarness({ properties = {}, sheets = [], now = DEFAU
     LockService: { getScriptLock: () => ({ waitLock() {}, releaseLock() {} }) },
 
     // 有實作存活時間：節流靠它讓計數過期，忽略 TTL 會讓相關的錯誤測不出來。
-    CacheService: {
-      getScriptCache: () => ({
-        get: (key) => {
-          const entry = cache[key];
-          return entry && entry.expiresAt > clock ? entry.value : null;
-        },
-        put: (key, value, ttlSeconds = DEFAULT_CACHE_TTL_SECONDS) => {
-          cache[key] = { value, expiresAt: clock + ttlSeconds * 1000 };
-        }
-      })
-    }
+    CacheService: { getScriptCache: () => scriptCache }
   };
 
   vm.createContext(sandbox);
+
+  // Math 屬於執行環境自帶的內建物件，沒辦法從 sandbox 直接換掉，只能載入後覆寫。
+  sandbox.__random = random;
+  vm.runInContext('Math.random = __random;', sandbox);
 
   // Apps Script 會把所有 .gs 檔載入同一個全域範圍。
   // lib.gs 先載入，讓相依關係與線上一致。
@@ -99,13 +173,22 @@ export function createGatewayHarness({ properties = {}, sheets = [], now = DEFAU
     /** 呼叫健康檢查端點。 */
     get: () => call('doGet().getContent()'),
 
-    /** 取得寫入指定工作表的所有列。 */
-    rows: (sheetName) => written.get(sheetName) ?? [],
+    /** 取得指定工作表目前的所有列（包含預先放入的種子資料）。 */
+    rows: (sheetName) => tables.get(sheetName) ?? [],
 
-    /** 清空已寫入的列，方便下一個測項從乾淨狀態開始。 */
-    clearRows: () => { for (const rows of written.values()) rows.length = 0; },
+    /** 清空所有工作表，方便下一個測項從乾淨狀態開始。 */
+    clearRows: () => { for (const rows of tables.values()) rows.length = 0; },
 
-    /** 推進時間，用來測試以時間分桶的節流。 */
+    /** 清空快取，用來驗證「快取失效後重讀試算表」的路徑。 */
+    clearCache: () => { cache = {}; },
+
+    /*
+     * 刪掉單一個快取 key。
+     * CacheService 不保證整批寫入的內容會一起存活，用來模擬只掉了其中一塊的情況。
+     */
+    dropCacheKey: (key) => { delete cache[key]; },
+
+    /** 推進時間，用來測試以時間分桶的節流與快取過期。 */
     advanceTime: (ms) => { clock += ms; },
 
     /** 載入的 .gs 檔清單，確認沒有漏掉。 */

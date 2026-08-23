@@ -27,13 +27,15 @@ function routeRequest(app) {
   switch (app) {
     case 'invitation-card':
       return handleInvitationCard;
+    case 'deep-talk':
+      return handleDeepTalk;
     default:
       return null;
   }
 }
 
 function supportedApps() {
-  return ['invitation-card'];
+  return ['invitation-card', 'deep-talk'];
 }
 
 /*
@@ -63,9 +65,11 @@ function doPost(e) {
       throw requestError('rate_limited');
     }
 
-    handler(body.payload || {});
+    // handler 可以回傳一個物件當作回應內容（例如題庫要回傳一疊題目）;
+    // 只負責寫入的 handler 回傳 undefined，展開後不影響結果。
+    const result = handler(body.payload || {});
 
-    return jsonResponse({ ok: true });
+    return jsonResponse({ ...result, ok: true });
   } catch (error) {
     console.error(error); // 詳細內容只留在執行紀錄，不回傳給前端。
 
