@@ -307,10 +307,11 @@ cp apps-script/.clasp.json.example apps-script/.clasp.json
 }
 ```
 
-> **為什麼是這個位置**：clasp 3 是用「執行時的工作目錄」推算遠端檔名，不是用 `rootDir`。
-> 如果把 `.clasp.json` 放在儲存庫根目錄並設 `rootDir: "apps-script"`，遠端檔案會被命名成
-> `apps-script/main`、`apps-script/lib`，之後 `clasp pull` 就會拉出多一層的
-> `apps-script/apps-script/`。放在 `apps-script/` 內並設 `rootDir: "."` 才會得到扁平的 `main`、`lib`。
+> **為什麼是這個位置**：把 `.clasp.json` 放在儲存庫根目錄並設 `rootDir: "apps-script"` 時，
+> 實測 clasp 3.4.0 在 `pull` 寫檔時會把 `rootDir` 套用兩次，拉出多一層的
+> `apps-script/apps-script/`。放在 `apps-script/` 內並設 `rootDir: "."` 就不會有這個問題。
+>
+> 這只影響本地檔案位置，遠端的檔名一直都是扁平的 `main`、`lib`、`app-invitation-card`。
 >
 > `package.json` 的 `gs:*` 指令已經包含 `cd apps-script`，所以你在儲存庫根目錄執行就好。
 >
@@ -371,6 +372,6 @@ cd apps-script && npx clasp push -w
 | `User has not enabled the Apps Script API` | 步驟 1 沒做 |
 | 推送成功但線上沒變 | 只 `push` 沒 `redeploy`。push 只更新程式碼，不會更新部署 |
 | 前端突然全部失敗 | 可能誤用 `clasp deploy` 產生了新網址，舊網址指向舊版本。用 `gs:deployments` 確認 |
-| `pull` 之後多出 `apps-script/apps-script/` | `.clasp.json` 放錯位置（見設定步驟 3）。刪掉多出來的目錄，把設定改成 `apps-script/.clasp.json` + `rootDir: "."`，再 push 一次讓遠端檔名恢復扁平 |
+| `pull` 之後多出 `apps-script/apps-script/` | `.clasp.json` 放錯位置（見設定步驟 3）。刪掉多出來的目錄，把設定改成 `apps-script/.clasp.json` + `rootDir: "."` 即可。遠端沒有被改壞，不需要重新 push |
 | `Security Error: srcDir ... escapes project root` | `.clasp.json` 少了 `rootDir`，或用了 `-P` 搭配相對路徑。clasp 3 的路徑穿越防護要求明確指定 `rootDir` |
 | `pull` 拉出 `.js` 而不是 `.gs` | `.clasp.json` 少了 `"fileExtension": "gs"` |
