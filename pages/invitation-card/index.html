@@ -5,12 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="description" content="選擇空檔暗號與活動，完成一張專屬的邀請卡。">
     <title>Invitation Card — Web Toybox</title>
-    <link rel="icon" href="../../favicon.svg" type="image/svg+xml">
+    <link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../../shared/tokens.css">
     <link rel="stylesheet" href="../../shared/base.css">
-    <link rel="stylesheet" href="./style.css?v=2">
+    <link rel="stylesheet" href="../../shared/ui.css">
+    <link rel="stylesheet" href="./style.css">
   </head>
   <body>
     <div class="grid-overlay" aria-hidden="true"></div>
@@ -43,7 +45,7 @@
         <h2 id="nameGateTitle">該怎麼稱呼你？</h2>
         <p class="sub">填入姓名或喜歡的稱呼，再打開這張邀請卡。</p>
         <label class="name-label" for="inviteeName">姓名或稱呼</label>
-        <input class="name-input" id="inviteeName" name="inviteeName" type="text" maxlength="40" autocomplete="name" aria-describedby="nameError" required>
+        <input class="input name-input" id="inviteeName" name="inviteeName" type="text" maxlength="40" autocomplete="name" aria-describedby="nameError" required>
         <p class="field-error" id="nameError" aria-live="polite"></p>
         <button class="btn btn-primary btn-wide" type="submit">開始</button>
       </form>
@@ -194,7 +196,7 @@
                     <span class="option-copy"><b>自己填寫</b><small>把你真正想做的事加進來。</small></span>
                   </label>
                   <label class="sr-only" for="customActivityInput">自訂活動</label>
-                  <input class="custom-activity-input" id="customActivityInput" type="text" maxlength="50" placeholder="例如：一起看展" autocomplete="off">
+                  <input class="input custom-activity-input" id="customActivityInput" type="text" maxlength="50" placeholder="例如：一起看展" autocomplete="off">
                 </div>
               </div>
             </fieldset>
@@ -231,6 +233,6 @@
       <footer class="page-footer"><span>Invitation Demo</span><span id="stepLabel">01 / 05</span></footer>
     </main>
 
-    <script src="./script.js?v=3"></script> <!-- 更新版本參數，避免瀏覽器沿用舊的等待流程。 -->
+    <script src="./script.js"></script>
   </body>
 </html>

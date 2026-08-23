@@ -56,8 +56,8 @@ const state = {
   textToken: 0
 };
 const GOOGLE_SHEETS_ENDPOINT = 'https://script.google.com/macros/s/AKfycbxuIIPk4q0qd5EoHOBAZe606OrZtzo1m3gychjEGSfsaqxTzIY8RFMYS3097yUpu_gq/exec';
-const SUBMISSION_TIMEOUT_MS = 30000; // Google Apps Script 冷啟動可能超過原本的 12 秒，避免資料已寫入卻被誤判失敗。
-const SUBMISSION_FEEDBACK_GRACE_MS = 1200; // 先捕捉常見的即時斷線；Google 回應較慢時不阻擋完成畫面。
+const SUBMISSION_TIMEOUT_MS = 30000; // Google Apps Script 冷啟動可能超過十秒，避免資料已寫入卻被誤判失敗。
+const MIN_CONFIRMATION_MS = 1900; // 送出很快時仍讓過場走完，避免畫面一閃而過。
 const declineReactions = [
   { message: '再考慮一下嘛，飲料我請', label: '你確定？' },
   { message: '這可能只是你的手滑了一下', label: '剛剛不算' },
@@ -311,10 +311,12 @@ async function sendInvitationResult() {
   const timeoutId = window.setTimeout(() => controller.abort(), SUBMISSION_TIMEOUT_MS);
 
   try {
-    await fetch(GOOGLE_SHEETS_ENDPOINT, {
+    // Apps Script 的 /exec 會 302 轉到 script.googleusercontent.com，
+    // 最終回應帶有 Access-Control-Allow-Origin: *，因此可以直接讀取結果。
+    const response = await fetch(GOOGLE_SHEETS_ENDPOINT, {
       method: 'POST',
-      mode: 'no-cors', // Apps Script 不提供可供前端讀取的跨網域回應，因此使用不透明回應送出資料。
       signal: controller.signal, // 避免網路無回應時讓按鈕永久停在傳送狀態。
+      redirect: 'follow',
       headers: {
         'Content-Type': 'text/plain;charset=utf-8' // 使用簡單請求，避免瀏覽器先送出 Apps Script 不支援的 CORS 預檢。
       },
@@ -327,54 +329,48 @@ async function sendInvitationResult() {
         page: window.location.href
       })
     });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const result = await response.json();
+
+    // Apps Script 驗證失敗時仍回傳 200，必須看 ok 欄位才知道是否真的寫入。
+    if (!result?.ok) {
+      throw new Error(result?.error || 'unknown_error');
+    }
   } finally {
     window.clearTimeout(timeoutId);
   }
 }
 
-function waitForSubmissionFeedback() {
-  const submission = sendInvitationResult();
-  let feedbackSettled = false;
-
-  return new Promise((resolve, reject) => {
-    const graceId = window.setTimeout(() => {
-      feedbackSettled = true;
-      resolve(); // 寫入通常已在一秒內完成，不再等待 Apps Script 跨網域結果頁。
-    }, SUBMISSION_FEEDBACK_GRACE_MS);
-
-    submission.then(() => {
-      if (feedbackSettled) return;
-      feedbackSettled = true;
-      window.clearTimeout(graceId);
-      resolve();
-    }, (error) => {
-      if (feedbackSettled) {
-        console.error('Google Sheet 延遲回應失敗：', error);
-        return;
-      }
-      feedbackSettled = true;
-      window.clearTimeout(graceId);
-      reject(error); // 一開始就偵測到斷線時，仍讓使用者可以重試。
-    });
-  });
-}
 
 let confirmationToken = 0;
 
 async function playConfirmationRitual() {
   const currentToken = ++confirmationToken;
-  const delay = reduceMotion.matches ? 200 : 480; // 完整過場約兩秒，不讓快速送出變成額外等待。
+  const delay = reduceMotion.matches ? 200 : 480;
   confirmationStatus.hidden = false;
   activityFieldset.disabled = true; // 過場期間固定本次選擇，避免送出內容與最後摘要不一致。
   toScene5.classList.add('is-confirming');
   toScene5.setAttribute('aria-busy', 'true');
   toScene5.textContent = '正在喬時間';
 
-  for (const message of confirmationReactions) {
-    if (currentToken !== confirmationToken) return; // 送出失敗或流程重設後，停止舊的等待文字。
-    confirmationMessage.textContent = message;
+  // 循環播放等待文字直到送出有結果：Apps Script 冷啟動可能要數秒，
+  // 固定長度的過場會提早停住，看起來像是畫面當掉。
+  for (let index = 0; currentToken === confirmationToken; index += 1) {
+    confirmationMessage.textContent = confirmationReactions[index % confirmationReactions.length];
     await new Promise((resolve) => window.setTimeout(resolve, delay));
   }
+}
+
+function holdConfirmationRitual(startedAt) {
+  const minimum = reduceMotion.matches ? 0 : MIN_CONFIRMATION_MS;
+  const remaining = minimum - (Date.now() - startedAt);
+  return remaining > 0
+    ? new Promise((resolve) => window.setTimeout(resolve, remaining))
+    : Promise.resolve();
 }
 
 function resetConfirmationRitual() {
@@ -403,11 +399,12 @@ activityForm.addEventListener('submit', async (event) => {
   toScene5.textContent = '正在傳送…';
   activityError.textContent = '';
 
+  const ritualStartedAt = Date.now();
+  playConfirmationRitual(); // 不等待：過場會持續循環，直到送出結果回來或流程被重設。
+
   try {
-    await Promise.all([
-      waitForSubmissionFeedback(), // 寫入繼續在背景完成，畫面不等待 Apps Script 的跨網域重新導向。
-      playConfirmationRitual() // 以約兩秒的動態過場提供持續回饋，避免使用者以為頁面沒有反應。
-    ]);
+    await sendInvitationResult(); // 確認 Apps Script 真的寫入後才進入摘要畫面。
+    await holdConfirmationRitual(ritualStartedAt);
     summaryTiming.textContent = state.chosenTiming;
     summaryActivity.textContent = state.chosenActivities.join('、');
     state.lastSubmittedSignature = getSelectionSignature();
@@ -418,7 +415,10 @@ activityForm.addEventListener('submit', async (event) => {
   } catch (error) {
     console.error(error);
     resetConfirmationRitual();
-    activityError.textContent = '回覆剛剛沒有送達，請檢查網路後再試一次。'; // 此功能只收集回覆，不會直接建立行事曆行程。
+    // 此功能只收集回覆，不會直接建立行事曆行程。
+    activityError.textContent = error.name === 'AbortError'
+      ? '等太久都沒有回應，請確認網路後再試一次。'
+      : '回覆剛剛沒有送達，請檢查網路後再試一次。';
     toScene5.disabled = false;
     toScene5.textContent = `確認 ${state.chosenActivities.length} 項選擇`;
   }

@@ -86,7 +86,9 @@ git rev-parse --short HEAD
 | `invite` | 否 | 在 Google Sheet 結果中辨識邀請對象 |
 | `v` | 否 | 標記分享版本，方便追蹤與產生不同的頁面網址 |
 
-> `v` 目前不會被 JavaScript 讀取，也不會改變頁面功能。它可作為版本識別，但無法嚴格保證 CSS 與 JavaScript 資源立即刷新；若要完整的快取失效策略，應替靜態資源檔名產生內容雜湊，或在資源網址上同步加入版本參數。
+> `v` 不會被 JavaScript 讀取，也不會改變頁面功能，只是方便辨識分享出去的是哪一版。
+>
+> 頁面資源本身已不再掛手動的 `?v=` 參數：先前 `style.css?v=2` 與 `script.js?v=3` 已經互相漂移，而 GitHub Pages 對靜態檔案的快取上限本來就約 10 分鐘，更新後稍待即可生效。若日後需要即時失效，應改為替檔名產生內容雜湊，而不是手動維護版本參數。
 
 如果代號包含空白、中文或特殊字元，建立網址時應進行 URL 編碼：
 
@@ -108,6 +110,19 @@ const GOOGLE_SHEETS_ENDPOINT = 'https://script.google.com/macros/s/.../exec'; //
 ```
 
 Apps Script Web App 網址會出現在瀏覽器端程式碼中，不應視為私密金鑰。Web App 必須驗證欄位與限制長度，並避免透過此表單收集密碼、證件號碼或其他敏感資料。
+
+### 送出結果的判讀
+
+`/exec` 會以 302 轉址到 `script.googleusercontent.com`，而最終回應帶有 `Access-Control-Allow-Origin: *`，因此前端可以用一般的 CORS 請求直接讀到 JSON 結果，不需要 `mode: 'no-cors'`，也不必用等待時間猜測是否成功。
+
+請求必須維持「簡單請求」（`Content-Type: text/plain;charset=utf-8`），否則瀏覽器會先送出 Apps Script 不支援的 CORS 預檢而失敗。
+
+Apps Script 即使驗證失敗也會回傳 HTTP 200，因此前端必須檢查 body 的 `ok` 欄位：
+
+| 回應 | 意義 |
+| --- | --- |
+| `{"ok": true}` | 已寫入 `responses` 工作表 |
+| `{"ok": false, "error": "invalid_request"}` | 欄位驗證失敗，未寫入任何資料 |
 
 ### 維護 Apps Script
 
@@ -132,21 +147,28 @@ Google Sheet 仍應保持私人，僅分享給需要查看結果的帳號。指�
 ```text
 web-toybox/
 ├── index.html                       # 作品集首頁
-├── style.css                        # 首頁樣式
-├── favicon.svg                      # 網站圖示
+├── 404.html                         # 找不到頁面（樣式內嵌，任意路徑下都能正確顯示）
+├── .nojekyll                        # 關閉 GitHub Pages 的 Jekyll 處理
 ├── LICENSE
 ├── README.md
+├── assets/
+│   ├── favicon.svg                  # 網站圖示
+│   └── home.css                     # 首頁專屬樣式
+├── shared/                          # 全站共用，載入順序：tokens → base → ui
+│   ├── tokens.css                   # 設計 token：色票、字型、版面尺寸
+│   ├── base.css                     # 全域重設與無障礙基礎
+│   └── ui.css                       # 共用元件：按鈕、標籤、輸入欄、返回連結
 ├── apps-script/
 │   └── invitation-card/
 │       └── Code.gs                  # Google Apps Script 後端原始碼
-├── shared/
-│   └── base.css                     # 共用基礎樣式
 └── pages/
     └── invitation-card/
         ├── index.html               # 邀請卡結構
-        ├── style.css                # 邀請卡樣式與動畫
+        ├── style.css                # 邀請卡專屬樣式與動畫
         └── script.js                # 互動狀態與 Google Sheet 送出流程
 ```
+
+所有顏色、字型與圓角都定義在 `shared/tokens.css`，是全站唯一來源。作品目錄不應該再宣告色碼。
 
 ## 本機開發
 
@@ -187,7 +209,8 @@ http://localhost:8000/pages/invitation-card/?invite=local-test
 - 未選擇時，按鈕和錯誤訊息狀態正確。
 - Google Sheet 傳送期間不能重複提交。
 - 傳送成功後才進入摘要畫面。
-- 模擬離線或錯誤 Endpoint 時會顯示重試訊息。
+- 模擬離線或錯誤 Endpoint 時會顯示重試訊息，且選項會解鎖、可以直接重送。
+- Apps Script 冷啟動（回應數秒）時，等待過場的文字會持續輪替而不是提早停住。
 - 啟用「減少動態效果」後不會出現不必要動畫。
 - 瀏覽器主控台沒有未處理錯誤。
 
@@ -224,10 +247,20 @@ Write-Output "https://a73013110.github.io/web-toybox/pages/invitation-card/?v=$v
 
 1. 在 `pages/` 下建立語意清楚、全小寫且以連字號分隔的目錄。
 2. 至少提供獨立的 `index.html`；樣式與腳本放在同一作品目錄。
-3. 優先使用 `shared/base.css` 中既有的重設與共用規則。
-4. 使用相對路徑，確保專案部署在 GitHub Pages 子路徑時仍能運作。
-5. 在根目錄 `index.html` 加入作品卡片，並同步更新本文件。
-6. 為互動元件補上鍵盤操作、焦點狀態與必要的 ARIA 標記。
+3. 依序載入共用樣式，最後才載入作品自己的樣式（順序不能顛倒，`base.css` 與 `ui.css` 都依賴 `tokens.css`）：
+
+   ```html
+   <link rel="stylesheet" href="../../shared/tokens.css">
+   <link rel="stylesheet" href="../../shared/base.css">
+   <link rel="stylesheet" href="../../shared/ui.css">
+   <link rel="stylesheet" href="./style.css">
+   ```
+
+4. 顏色、字型、圓角一律使用 `shared/tokens.css` 的變數。
+5. `.btn` / `.btn-primary` / `.btn-link` / `.btn-wide`、`.eyebrow`、`.mark`、`.divider`、`.input`、`.field-error`、`.sr-only`、`.back-link` 直接沿用 `shared/ui.css`；只有作品專屬的變化才寫進自己的 `style.css`。
+6. 使用相對路徑，確保專案部署在 GitHub Pages 子路徑時仍能運作。
+7. 在根目錄 `index.html` 加入作品卡片，並同步更新本文件。
+8. 為互動元件補上鍵盤操作、焦點狀態與必要的 ARIA 標記。
 
 建議結構：
 

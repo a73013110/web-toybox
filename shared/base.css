@@ -1,6 +1,9 @@
+/*
+ * 全域重設與無障礙基礎。需先載入 tokens.css。
+ */
 :root {
   color-scheme: light;
-  font-family: "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif;
+  font-family: var(--font-sans);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 }
@@ -34,7 +37,7 @@ a {
 button:focus-visible,
 input:focus-visible,
 a:focus-visible {
-  outline: 3px solid #a8874f;
+  outline: 3px solid var(--gold);
   outline-offset: 4px;
 }
 

@@ -1,0 +1,21 @@
+# 作業系統
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 編輯器
+.vscode/
+.idea/
+*.swp
+
+# Node（僅開發工具會用到，網站本體維持零建置）
+node_modules/
+npm-debug.log*
+
+# Apps Script / clasp
+# .clasp.json 含 script ID 與部署資訊，不進版控
+.clasp.json
+.clasprc.json
+
+# 本機暫存
+*.local
