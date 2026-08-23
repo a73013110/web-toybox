@@ -1,0 +1,20 @@
+{
+  "name": "web-toybox",
+  "version": "1.0.0",
+  "private": true,
+  "description": "開發工具設定。網站本體維持零建置，部署到 GitHub Pages 完全不需要這個檔案。",
+  "license": "MIT",
+  "scripts": {
+    "gs:status": "clasp status",
+    "gs:push": "clasp push",
+    "gs:pull": "clasp pull",
+    "gs:deployments": "clasp deployments",
+    "gs:redeploy": "clasp redeploy",
+    "gs:logs": "clasp logs",
+    "gs:open": "clasp open-script",
+    "gs:web": "clasp open-web-app"
+  },
+  "devDependencies": {
+    "@google/clasp": "^3.4.0"
+  }
+}

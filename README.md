@@ -7,7 +7,7 @@
 
 ## 特色
 
-- **零建置流程**：不需要 Node.js、套件管理器或打包工具。
+- **零建置流程**：網站本體不需要 Node.js、套件管理器或打包工具。
 - **共用設計層**：色票、字型與常用元件集中在 `shared/`，新增作品不必複製貼上。
 - **獨立作品結構**：每個作品放在 `pages/<作品名稱>/`，互不干擾。
 - **響應式設計**：支援桌面與行動裝置。
@@ -29,6 +29,8 @@ web-toybox/
 ├── 404.html                         # 找不到頁面（樣式內嵌，任意路徑下都能正確顯示）
 ├── robots.txt
 ├── .nojekyll                        # 關閉 GitHub Pages 的 Jekyll 處理
+├── package.json                     # 僅供開發工具（clasp），網站本體用不到
+├── .clasp.json.example              # clasp 設定範本
 ├── LICENSE
 ├── README.md
 ├── assets/
@@ -114,6 +116,13 @@ try {
 
 部署步驟、日常維護、新增作品要改哪裡、除錯方式與已知限制（不支援串流、冷啟動、配額、無法辨識用戶端 IP）見 [apps-script/README.md](./apps-script/README.md)。
 
+程式碼可以用 clasp 直接從這個儲存庫推送，不必手動複製貼上到編輯器：
+
+```powershell
+npm run gs:push
+npm run gs:redeploy -- <deploymentId> -d "說明"
+```
+
 ## 本機開發
 
 ### 需求
@@ -121,6 +130,14 @@ try {
 - 任一現代瀏覽器
 - Python 3，或其他可啟動靜態伺服器的工具
 - 網路連線：載入 Google Fonts 與測試 Apps Script Web App 時需要
+
+以上就是改網頁需要的全部。只有在要用 clasp 部署 Apps Script 時才需要 Node.js：
+
+```powershell
+npm install
+```
+
+`package.json` 與 `node_modules/` 只服務開發工具，GitHub Pages 部署完全不會用到。設定方式見 [apps-script/README.md](./apps-script/README.md#用-clasp-從儲存庫直接推送)。
 
 ### 啟動
 

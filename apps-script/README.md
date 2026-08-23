@@ -136,6 +136,13 @@ https://script.google.com/macros/s/AKfycb.../exec
 
 記得把改動同步回這個目錄的 `.gs` 檔並提交，否則儲存庫的版本會落後。
 
+設定好 clasp 之後（見下方章節），這整段可以縮成兩行，也不會有「忘記同步回儲存庫」的問題：
+
+```bash
+npm run gs:push
+npm run gs:redeploy -- <deploymentId> -d "說明"
+```
+
 ### 新增一個作品
 
 1. 在本目錄建立 `app-<作品名稱>.gs`，實作 `handle<作品名稱>(payload)`
@@ -227,32 +234,114 @@ Apps Script 即使驗證失敗也會回傳 HTTP 200，因此必須檢查 body �
 
 需要串流回應、更高流量或真正的用戶端識別時，替代方案是 Cloudflare Workers（免費額度較高、原生支援 SSE 串流）。前端的送出邏輯已集中在 `shared/api.js`，屆時只需要改那一個檔案。
 
-## 進階：用 clasp 取代複製貼上
+## 用 clasp 從儲存庫直接推送
 
-作品變多後，手動同步四個檔案會很煩。[`clasp`](https://github.com/google/clasp) 可以直接從儲存庫推送。
+手動複製貼上 `.gs` 到編輯器很快就會變成負擔。[`clasp`](https://github.com/google/clasp) 讓你直接從這個儲存庫推送程式碼。
+
+clasp 已列為開發相依，**不需要全域安裝**：
 
 ```bash
-npm install -g @google/clasp
-clasp login
+npm install
 ```
 
-還需要到 <https://script.google.com/home/usersettings> 開啟「**Google Apps Script API**」。
+> `package.json` 與 `node_modules/` 只服務開發工具。網站本體維持零建置，部署到 GitHub Pages 完全用不到它們。
 
-在專案根目錄建立 `.clasp.json`（已列入 `.gitignore`，因為含 script ID）：
+### 首次設定
+
+**1. 開啟 Apps Script API**
+
+到 <https://script.google.com/home/usersettings>，把「Google Apps Script API」打開。沒開的話 clasp 所有動作都會失敗。
+
+**2. 登入**
+
+```bash
+npx clasp login
+```
+
+會開瀏覽器要求授權，憑證存在 `~/.clasprc.json`（已列入 `.gitignore`）。
+
+**3. 建立 `.clasp.json`**
+
+複製範本並填入指令碼 ID：
+
+```bash
+cp .clasp.json.example .clasp.json
+```
+
+指令碼 ID 在 Apps Script 的「**專案設定 → 指令碼 ID**」。
 
 ```json
 {
-  "scriptId": "從 Apps Script 專案設定頁面複製",
-  "rootDir": "apps-script"
+  "scriptId": "貼在這裡",
+  "rootDir": "apps-script",
+  "fileExtension": "gs"
 }
 ```
 
-之後：
+`.clasp.json` 含專案識別資訊，已列入 `.gitignore`，不會進版控。
+
+**4. 確認要推送的檔案**
 
 ```bash
-clasp push              # 推送程式碼
-clasp deploy -i <部署ID> -d "說明"   # 更新現有部署，網址不變
-clasp open              # 用瀏覽器開啟專案
+npm run gs:status
 ```
 
-`clasp deploy` 不加 `-i` 會建立**新部署與新網址**，和網頁編輯器的「新增部署作業」一樣要小心。
+應該只看到四個 Tracked 檔案，`README.md` 會在 Untracked：
+
+```text
+Tracked files:
+└─ apps-script\app-invitation-card.gs
+└─ apps-script\lib.gs
+└─ apps-script\appsscript.json
+└─ apps-script\main.gs
+Untracked files:
+└─ apps-script\README.md
+```
+
+`clasp status` 是唯一可靠的事實來源 —— 第一次推送前一定要先看這個，不要只相信 `.claspignore`。
+
+**5. 先確認遠端與本地一致**
+
+`clasp push` 會**用本地覆蓋遠端**。如果你曾經直接在網頁編輯器裡改過東西，那些改動會被蓋掉。用 git 當安全網：
+
+```bash
+git status              # 必須是乾淨的
+npm run gs:pull         # 用遠端覆蓋本地
+git diff                # 空的 → 兩邊一致，安全
+```
+
+`git diff` 有東西，就代表你在編輯器裡改過而沒同步回來 —— 這時看清楚內容再決定要保留哪一邊（`git checkout .` 保留本地版本）。
+
+### 日常流程
+
+改完 `.gs` 之後：
+
+```bash
+npm run gs:push                          # 推送程式碼（此時線上服務還沒變）
+npm run gs:deployments                   # 列出部署，複製你的 deploymentId
+npm run gs:redeploy -- <deploymentId> -d "說明"
+```
+
+`redeploy` 會建立新版本並更新**現有**部署，**網址不變**。
+
+> ⚠️ `clasp deploy`（不帶 deploymentId）會建立**全新部署與全新網址**，等同於網頁編輯器的「新增部署作業」。要更新現有服務一律用 `redeploy`。
+
+deploymentId 是固定的，記在手邊就不用每次查。
+
+### 其他好用的指令
+
+| 指令 | 用途 |
+| --- | --- |
+| `npm run gs:logs` | 看最近的執行紀錄，等同編輯器的「執行作業」 |
+| `npm run gs:open` | 用瀏覽器開啟 Apps Script 專案 |
+| `npm run gs:web` | 開啟已部署的 Web App |
+| `npx clasp push -w` | 監看檔案變動，存檔就自動推送（開發時方便，但仍需 redeploy 才會生效） |
+
+### 常見問題
+
+| 症狀 | 原因 |
+| --- | --- |
+| `Project settings not found` | 沒有 `.clasp.json`，或不在專案根目錄執行 |
+| `User has not enabled the Apps Script API` | 步驟 1 沒做 |
+| 推送成功但線上沒變 | 只 `push` 沒 `redeploy`。push 只更新程式碼，不會更新部署 |
+| 前端突然全部失敗 | 可能誤用 `clasp deploy` 產生了新網址，舊網址指向舊版本。用 `gs:deployments` 確認 |
