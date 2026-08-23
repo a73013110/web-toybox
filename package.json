@@ -5,12 +5,12 @@
   "description": "開發工具設定。網站本體維持零建置，部署到 GitHub Pages 完全不需要這個檔案。",
   "license": "MIT",
   "scripts": {
-    "gs:status": "cd apps-script && clasp status",
     "gs:push": "cd apps-script && clasp push",
+    "gs:deploy": "node scripts/gs-deploy.mjs",
+    "gs:status": "cd apps-script && clasp status",
     "gs:pull": "cd apps-script && clasp pull",
-    "gs:deployments": "cd apps-script && clasp deployments",
-    "gs:redeploy": "cd apps-script && clasp redeploy",
     "gs:logs": "cd apps-script && clasp logs",
+    "gs:deployments": "cd apps-script && clasp deployments",
     "gs:open": "cd apps-script && clasp open-script",
     "gs:web": "cd apps-script && clasp open-web-app"
   },

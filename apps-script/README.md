@@ -4,6 +4,40 @@
 
 **整個 Web Toybox 只維護這一個 Apps Script 專案**，所有作品共用同一組部署網址，靠請求裡的 `app` 欄位分流。
 
+## 改了 `.gs` 之後要跑什麼
+
+在儲存庫根目錄，兩行：
+
+```bash
+npm run gs:push
+```
+
+```bash
+npm run gs:deploy -- "改了什麼"
+```
+
+`push` 上傳程式碼（此時線上還沒變），`deploy` 讓它生效。**網址不變，前端不用動。**
+
+說明可以省略：`npm run gs:deploy`。部署 ID 會自動從 `shared/config.js` 讀出來，不用去查。
+
+改完記得一起 commit，儲存庫才不會落後。
+
+### 其他情境
+
+| 想做的事 | 指令 |
+| --- | --- |
+| 看會推送哪些檔案 | `npm run gs:status` |
+| 出錯了想看執行紀錄 | `npm run gs:logs` |
+| 在網頁編輯器改過，想拉回本地 | `npm run gs:pull` |
+| 開啟 Apps Script 專案 | `npm run gs:open` |
+| 開啟部署好的 Web App | `npm run gs:web` |
+| 列出所有部署 | `npm run gs:deployments` |
+
+> ⚠️ **不要直接用 `npx clasp deploy`。** 那會建立全新部署與全新網址，前端就連不到了。
+> `npm run gs:deploy` 走的是 `clasp redeploy`，更新現有部署、保留網址。
+
+第一次使用需要先設定，見[用 clasp 從儲存庫直接推送](#用-clasp-從儲存庫直接推送)。
+
 ## 先搞懂三個名詞
 
 | 名詞 | 意思 |
@@ -136,12 +170,7 @@ https://script.google.com/macros/s/AKfycb.../exec
 
 記得把改動同步回這個目錄的 `.gs` 檔並提交，否則儲存庫的版本會落後。
 
-設定好 clasp 之後（見下方章節），這整段可以縮成兩行，也不會有「忘記同步回儲存庫」的問題：
-
-```bash
-npm run gs:push
-npm run gs:redeploy -- <deploymentId> -d "說明"
-```
+設定好 clasp 之後，這整段可以縮成兩行，也不會有「忘記同步回儲存庫」的問題 —— 見文件開頭的[改了 `.gs` 之後要跑什麼](#改了-gs-之後要跑什麼)。
 
 ### 新增一個作品
 
@@ -324,28 +353,15 @@ git diff                # 空的 → 兩邊一致，安全
 
 ### 日常流程
 
-改完 `.gs` 之後：
+見文件開頭的[改了 `.gs` 之後要跑什麼](#改了-gs-之後要跑什麼)。
+
+### 監看模式
 
 ```bash
-npm run gs:push                          # 推送程式碼（此時線上服務還沒變）
-npm run gs:deployments                   # 列出部署，複製你的 deploymentId
-npm run gs:redeploy -- <deploymentId> -d "說明"
+cd apps-script && npx clasp push -w
 ```
 
-`redeploy` 會建立新版本並更新**現有**部署，**網址不變**。
-
-> ⚠️ `clasp deploy`（不帶 deploymentId）會建立**全新部署與全新網址**，等同於網頁編輯器的「新增部署作業」。要更新現有服務一律用 `redeploy`。
-
-deploymentId 是固定的，記在手邊就不用每次查。
-
-### 其他好用的指令
-
-| 指令 | 用途 |
-| --- | --- |
-| `npm run gs:logs` | 看最近的執行紀錄，等同編輯器的「執行作業」 |
-| `npm run gs:open` | 用瀏覽器開啟 Apps Script 專案 |
-| `npm run gs:web` | 開啟已部署的 Web App |
-| `npx clasp push -w` | 監看檔案變動，存檔就自動推送（開發時方便，但仍需 redeploy 才會生效） |
+存檔就自動推送，開發時方便。但仍需要 `npm run gs:deploy` 才會生效。
 
 ### 常見問題
 

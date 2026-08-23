@@ -30,6 +30,8 @@ web-toybox/
 ├── robots.txt
 ├── .nojekyll                        # 關閉 GitHub Pages 的 Jekyll 處理
 ├── package.json                     # 僅供開發工具（clasp），網站本體用不到
+├── scripts/
+│   └── gs-deploy.mjs                # 更新 Apps Script 部署，部署 ID 自動取自 config.js
 ├── LICENSE
 ├── README.md
 ├── assets/
@@ -117,12 +119,17 @@ try {
 
 部署步驟、日常維護、新增作品要改哪裡、除錯方式與已知限制（不支援串流、冷啟動、配額、無法辨識用戶端 IP）見 [apps-script/README.md](./apps-script/README.md)。
 
-程式碼可以用 clasp 直接從這個儲存庫推送，不必手動複製貼上到編輯器：
+程式碼可以用 clasp 直接從這個儲存庫推送，不必手動複製貼上到編輯器。改完 `.gs` 之後：
 
 ```powershell
 npm run gs:push
-npm run gs:redeploy -- <deploymentId> -d "說明"
 ```
+
+```powershell
+npm run gs:deploy -- "改了什麼"
+```
+
+網址不變，前端不用動。完整速查表見 [apps-script/README.md](./apps-script/README.md#改了-gs-之後要跑什麼)。
 
 ## 本機開發
 
