@@ -2,173 +2,96 @@
 
 一個以原生 HTML、CSS 與 JavaScript 製作的互動網頁作品集。無需建置工具或前端框架，可直接部署到 GitHub Pages。
 
-- 線上首頁：[Web Toybox](https://a73013110.github.io/web-toybox/)
-- 邀請卡：[Invitation Card](https://a73013110.github.io/web-toybox/pages/invitation-card/)
+- 線上首頁：<https://a73013110.github.io/web-toybox/>
 - 授權方式：[MIT License](./LICENSE)
 
 ## 特色
 
 - **零建置流程**：不需要 Node.js、套件管理器或打包工具。
-- **獨立作品結構**：每個作品放在 `pages/<作品名稱>/`，方便新增與維護。
+- **共用設計層**：色票、字型與常用元件集中在 `shared/`，新增作品不必複製貼上。
+- **獨立作品結構**：每個作品放在 `pages/<作品名稱>/`，互不干擾。
 - **響應式設計**：支援桌面與行動裝置。
 - **無障礙考量**：提供語意化標籤、鍵盤焦點、讀屏提示與減少動態效果支援。
-- **靜態部署**：可直接使用 GitHub Pages 託管。
 
-## 目前作品
+## 作品
 
-### Invitation Card
-
-五步驟互動邀請卡：
-
-1. 接受邀請或與趣味拒絕按鈕互動。
-2. 確認邀請。
-3. 選擇「空檔暗號」。
-4. 複選想進行的活動。
-5. 將結果透過 Google Apps Script 傳送至 Google Sheet，並顯示行程摘要。
-
-完成送出後，Google Sheet 會記錄以下欄位：
-
-| 欄位 | 說明 |
-| --- | --- |
-| `invite` | 分享網址中的對象代號；沒有提供時為 `未指定` |
-| `timing` | 對方選擇的空檔暗號 |
-| `activities` | 對方選擇的活動，以頓號分隔 |
-| `receivedAt` | Apps Script 寫入資料時的伺服器時間 |
-| `page` | 對方填寫時的完整頁面網址 |
-| `schemaVersion` | 前後端資料結構版本，目前為 `1` |
-| `declineCount` | 這次流程按下「先不要」及其變化按鈕的次數，目前範圍為 `0` 至 `5` |
-
-## 分享邀請卡
-
-### 基本網址
-
-如果只分享給一個人，或不需要辨識填寫者，可以直接使用：
-
-```text
-https://a73013110.github.io/web-toybox/pages/invitation-card/
-```
-
-### 指定邀請對象
-
-在網址加入 `invite` 查詢參數，可讓 Google Sheet 結果帶上對象代號：
-
-```text
-https://a73013110.github.io/web-toybox/pages/invitation-card/?invite=amy
-```
-
-分享給不同對象時，替換代號即可：
-
-```text
-https://a73013110.github.io/web-toybox/pages/invitation-card/?invite=bob
-https://a73013110.github.io/web-toybox/pages/invitation-card/?invite=charlie
-```
-
-建議只使用不敏感的英文代號、暱稱或流水號。`invite` 只是方便辨識，使用者可以自行修改網址，因此**不能當作登入、授權或身分驗證機制**。
-
-### 同時標記發布版本
-
-可以加入 `v` 參數標記分享時使用的版本，建議填入 Git commit 的短雜湊：
-
-```text
-https://a73013110.github.io/web-toybox/pages/invitation-card/?v=55810ef&invite=amy
-```
-
-取得目前版本：
-
-```powershell
-git rev-parse --short HEAD
-```
-
-參數說明：
-
-| 參數 | 必填 | 用途 |
+| 作品 | 說明 | 文件 |
 | --- | --- | --- |
-| `invite` | 否 | 在 Google Sheet 結果中辨識邀請對象 |
-| `v` | 否 | 標記分享版本，方便追蹤與產生不同的頁面網址 |
+| [Invitation Card](https://a73013110.github.io/web-toybox/pages/invitation-card/) | 五步驟互動邀請卡，結果寫入 Google Sheet | [說明](./pages/invitation-card/README.md) |
 
-> `v` 不會被 JavaScript 讀取，也不會改變頁面功能，只是方便辨識分享出去的是哪一版。
->
-> 頁面資源本身已不再掛手動的 `?v=` 參數：先前 `style.css?v=2` 與 `script.js?v=3` 已經互相漂移，而 GitHub Pages 對靜態檔案的快取上限本來就約 10 分鐘，更新後稍待即可生效。若日後需要即時失效，應改為替檔名產生內容雜湊，而不是手動維護版本參數。
-
-如果代號包含空白、中文或特殊字元，建立網址時應進行 URL 編碼：
-
-```js
-const invite = encodeURIComponent('Amy 測試'); // 避免特殊字元破壞網址。
-const url = `https://a73013110.github.io/web-toybox/pages/invitation-card/?invite=${invite}`;
-```
-
-## 查看邀請結果
-
-1. 開啟綁定 Apps Script 的 Google Sheet。
-2. 進入 `responses` 工作表。
-3. 查看每次送出的伺服器時間、邀請對象、空檔暗號、活動、頁面網址、資料版本與「先不要」點擊次數。
-
-目前使用的 Web App Endpoint 設定於 [`pages/invitation-card/script.js`](./pages/invitation-card/script.js)：
-
-```js
-const GOOGLE_SHEETS_ENDPOINT = 'https://script.google.com/macros/s/.../exec'; // Apps Script 正式部署網址。
-```
-
-Apps Script Web App 網址會出現在瀏覽器端程式碼中，不應視為私密金鑰。Web App 必須驗證欄位與限制長度，並避免透過此表單收集密碼、證件號碼或其他敏感資料。
-
-### 送出結果的判讀
-
-`/exec` 會以 302 轉址到 `script.googleusercontent.com`，而最終回應帶有 `Access-Control-Allow-Origin: *`，因此前端可以用一般的 CORS 請求直接讀到 JSON 結果，不需要 `mode: 'no-cors'`，也不必用等待時間猜測是否成功。
-
-請求必須維持「簡單請求」（`Content-Type: text/plain;charset=utf-8`），否則瀏覽器會先送出 Apps Script 不支援的 CORS 預檢而失敗。
-
-Apps Script 即使驗證失敗也會回傳 HTTP 200，因此前端必須檢查 body 的 `ok` 欄位：
-
-| 回應 | 意義 |
-| --- | --- |
-| `{"ok": true}` | 已寫入 `responses` 工作表 |
-| `{"ok": false, "error": "invalid_request"}` | 欄位驗證失敗，未寫入任何資料 |
-
-### 維護 Apps Script
-
-Apps Script 原始碼同步保存在 [`apps-script/invitation-card/Code.gs`](./apps-script/invitation-card/Code.gs)。更新後需將內容複製至 Google Apps Script，建立新部署版本，前端才會使用更新後的程式。
-
-試算表 ID 本身不是存取密碼，但會暴露文件識別資訊，因此不直接寫入公開儲存庫。請在 Apps Script 的「專案設定 → 指令碼屬性」新增：
-
-| 屬性 | 值 |
-| --- | --- |
-| `INVITATION_RESPONSES_SPREADSHEET_ID` | Google Sheet 網址中 `/d/` 與 `/edit` 之間的試算表檔案 ID |
-
-`responses` 工作表第一列應依序建立以下欄位：
-
-```text
-收件時間｜邀請對象｜先不要點擊次數｜空檔暗號｜活動｜頁面網址｜資料版本
-```
-
-Google Sheet 仍應保持私人，僅分享給需要查看結果的帳號。指令碼屬性只負責避免在 Git 中留下 ID，不能取代 Google Sheet 本身的權限設定。
+作品清單由 [`shared/projects.js`](./shared/projects.js) 提供，首頁的卡片與件數會自動產生。
 
 ## 專案結構
 
 ```text
 web-toybox/
-├── index.html                       # 作品集首頁
+├── index.html                       # 作品集首頁（卡片由 JavaScript 產生）
 ├── 404.html                         # 找不到頁面（樣式內嵌，任意路徑下都能正確顯示）
+├── robots.txt
 ├── .nojekyll                        # 關閉 GitHub Pages 的 Jekyll 處理
 ├── LICENSE
 ├── README.md
 ├── assets/
 │   ├── favicon.svg                  # 網站圖示
-│   └── home.css                     # 首頁專屬樣式
-├── shared/                          # 全站共用，載入順序：tokens → base → ui
+│   ├── home.css                     # 首頁專屬樣式
+│   └── home.js                      # 依作品清單渲染首頁卡片
+├── shared/                          # 全站共用
 │   ├── tokens.css                   # 設計 token：色票、字型、版面尺寸
 │   ├── base.css                     # 全域重設與無障礙基礎
-│   └── ui.css                       # 共用元件：按鈕、標籤、輸入欄、返回連結
-├── apps-script/
-│   └── invitation-card/
-│       └── Code.gs                  # Google Apps Script 後端原始碼
+│   ├── ui.css                       # 共用元件：按鈕、標籤、輸入欄、返回連結
+│   └── projects.js                  # 作品清單（新增作品時唯一要改的資料）
+├── templates/
+│   └── page-starter/                # 新作品骨架，複製到 pages/ 後改名即可
+├── apps-script/                     # Google Apps Script 後端原始碼
+│   ├── README.md
+│   └── invitation-card/Code.gs
 └── pages/
     └── invitation-card/
-        ├── index.html               # 邀請卡結構
-        ├── style.css                # 邀請卡專屬樣式與動畫
-        └── script.js                # 互動狀態與 Google Sheet 送出流程
+        ├── README.md
+        ├── index.html
+        ├── style.css
+        └── script.js
 ```
 
-所有顏色、字型與圓角都定義在 `shared/tokens.css`，是全站唯一來源。作品目錄不應該再宣告色碼。
+## 共用層
+
+樣式分成三層，載入順序不能顛倒（`base.css` 與 `ui.css` 都依賴 `tokens.css` 的變數）：
+
+| 檔案 | 內容 |
+| --- | --- |
+| `shared/tokens.css` | `--ink`、`--gold`、`--paper`、`--surface`、`--font-sans`、`--radius` 等變數。**全站唯一的色票來源**，作品目錄不應該再宣告色碼 |
+| `shared/base.css` | box-sizing、邊界重設、focus 樣式、`prefers-reduced-motion` 支援 |
+| `shared/ui.css` | `.btn` / `.btn-primary` / `.btn-link` / `.btn-wide`、`.eyebrow`、`.mark`、`.divider`、`.input`、`.field-error`、`.sr-only`、`.back-link` |
+
+作品專屬的變化寫進該作品自己的 `style.css`，不要改共用檔。
+
+## 新增作品
+
+1. 複製 `templates/page-starter/` 到 `pages/<作品名稱>/`，目錄名稱使用全小寫、連字號分隔。
+2. 修改 `index.html` 的標題、描述與內容；樣式與腳本留在同一個作品目錄。
+3. 顏色、字型、圓角一律使用 `shared/tokens.css` 的變數；能用 `shared/ui.css` 的元件就不要重寫。
+4. 使用相對路徑，確保部署在 GitHub Pages 子路徑時仍能運作。
+5. 在 [`shared/projects.js`](./shared/projects.js) 的 `PROJECTS` 加一筆，首頁就會自動出現卡片：
+
+   ```js
+   {
+     slug: 'new-experiment',        // 對應 pages/new-experiment/
+     type: 'INTERACTIVE TOY',
+     title: 'New Experiment',
+     summary: '一到兩句話的說明。'
+   }
+   ```
+
+   還沒做完時加上 `draft: true`，首頁就不會列出，但頁面仍可直接開啟。
+
+6. 為互動元件補上鍵盤操作、焦點狀態與必要的 ARIA 標記。
+7. 若作品有值得說明的參數或後端行為，在作品目錄放一份 `README.md`，並在上方「作品」表格加一列。
+
+## 後端
+
+靜態網站沒有後端。需要寫入 Google Sheet、保管 API 金鑰之類的能力時，由 Google Apps Script Web App 承接。
+
+部署方式、指令碼屬性、跨網域呼叫方式與已知限制（不支援串流、冷啟動、配額）見 [apps-script/README.md](./apps-script/README.md)。
 
 ## 本機開發
 
@@ -178,7 +101,7 @@ web-toybox/
 - Python 3，或其他可啟動靜態伺服器的工具
 - 網路連線：載入 Google Fonts 與測試 Apps Script Web App 時需要
 
-### 啟動本機伺服器
+### 啟動
 
 在專案根目錄執行：
 
@@ -186,35 +109,22 @@ web-toybox/
 python -m http.server 8000
 ```
 
-接著開啟：
+接著開啟 <http://localhost:8000/>。
 
-```text
-http://localhost:8000/
-```
-
-邀請卡測試網址：
-
-```text
-http://localhost:8000/pages/invitation-card/?invite=local-test
-```
-
-建議使用本機伺服器，而不是直接雙擊 HTML 檔案，以便更接近 GitHub Pages 的實際執行環境。
+首頁使用 ES module 載入作品清單，**必須透過本機伺服器開啟**，直接雙擊 HTML 檔案會因為瀏覽器限制而無法載入。
 
 ## 修改與測試流程
 
-此專案目前沒有自動化測試或建置步驟。提交前至少手動確認：
+此專案沒有自動化測試或建置步驟。提交前至少手動確認：
 
-- 首頁與邀請卡在桌面、窄螢幕下皆可正常顯示。
+- 首頁與更動到的作品在桌面、窄螢幕（375px）下皆可正常顯示，沒有水平捲軸。
 - 鍵盤可以完成整個互動流程。
-- 未選擇時，按鈕和錯誤訊息狀態正確。
-- Google Sheet 傳送期間不能重複提交。
-- 傳送成功後才進入摘要畫面。
-- 模擬離線或錯誤 Endpoint 時會顯示重試訊息，且選項會解鎖、可以直接重送。
-- Apps Script 冷啟動（回應數秒）時，等待過場的文字會持續輪替而不是提早停住。
 - 啟用「減少動態效果」後不會出現不必要動畫。
 - 瀏覽器主控台沒有未處理錯誤。
 
-JavaScript 語法可使用 Node.js 額外檢查；此步驟非執行網站的必要條件：
+作品各自的測試重點寫在該作品的 README，例如[邀請卡的測試清單](./pages/invitation-card/README.md#測試清單)。
+
+JavaScript 語法可用 Node.js 額外檢查；此步驟非執行網站的必要條件：
 
 ```powershell
 node --check pages/invitation-card/script.js
@@ -236,48 +146,12 @@ git commit -m "描述本次變更"
 git push origin main
 ```
 
-部署完成後，可使用短 commit 雜湊更新分享網址的 `v` 參數：
-
-```powershell
-$version = git rev-parse --short HEAD
-Write-Output "https://a73013110.github.io/web-toybox/pages/invitation-card/?v=$version&invite=amy"
-```
-
-## 新增作品
-
-1. 在 `pages/` 下建立語意清楚、全小寫且以連字號分隔的目錄。
-2. 至少提供獨立的 `index.html`；樣式與腳本放在同一作品目錄。
-3. 依序載入共用樣式，最後才載入作品自己的樣式（順序不能顛倒，`base.css` 與 `ui.css` 都依賴 `tokens.css`）：
-
-   ```html
-   <link rel="stylesheet" href="../../shared/tokens.css">
-   <link rel="stylesheet" href="../../shared/base.css">
-   <link rel="stylesheet" href="../../shared/ui.css">
-   <link rel="stylesheet" href="./style.css">
-   ```
-
-4. 顏色、字型、圓角一律使用 `shared/tokens.css` 的變數。
-5. `.btn` / `.btn-primary` / `.btn-link` / `.btn-wide`、`.eyebrow`、`.mark`、`.divider`、`.input`、`.field-error`、`.sr-only`、`.back-link` 直接沿用 `shared/ui.css`；只有作品專屬的變化才寫進自己的 `style.css`。
-6. 使用相對路徑，確保專案部署在 GitHub Pages 子路徑時仍能運作。
-7. 在根目錄 `index.html` 加入作品卡片，並同步更新本文件。
-8. 為互動元件補上鍵盤操作、焦點狀態與必要的 ARIA 標記。
-
-建議結構：
-
-```text
-pages/
-└── new-experiment/
-    ├── index.html
-    ├── style.css
-    └── script.js
-```
-
 ## 隱私與安全
 
-- 不要把 API 私鑰、存取權杖或帳號密碼放進前端檔案。
-- `invite` 與 `v` 都是使用者可修改的公開參數。
+- 不要把 API 私鑰、存取權杖或帳號密碼放進前端檔案。Apps Script Web App 網址會出現在瀏覽器端程式碼中，**不應視為私密金鑰**。
+- 網址查詢參數都是使用者可以修改的公開資料，不能當作身分驗證。
 - 分享網址中不要放真實姓名、Email、電話或其他敏感資訊。
-- 收件時間由 Apps Script 寫入，仍只適合一般紀錄，不應作為正式稽核時間。
+- 伺服器寫入時間只適合一般紀錄，不應作為正式稽核時間。
 - Google Sheet 與 Apps Script 是第三方服務；正式收集資料前，應確認其配額、資料保存與隱私設定符合需求。
 
 ## 授權

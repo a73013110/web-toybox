@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="description" content="一句話說明這個作品在做什麼。">
+    <title>Page Starter — Web Toybox</title>
+    <link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- 載入順序不能顛倒：base.css 與 ui.css 都依賴 tokens.css 的變數。 -->
+    <link rel="stylesheet" href="../../shared/tokens.css">
+    <link rel="stylesheet" href="../../shared/base.css">
+    <link rel="stylesheet" href="../../shared/ui.css">
+    <link rel="stylesheet" href="./style.css">
+  </head>
+  <body>
+    <a class="back-link" href="../../" aria-label="回到作品目錄">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5m6-6-6 6 6 6"/></svg>
+      <span>作品目錄</span>
+    </a>
+
+    <main class="stage">
+      <article class="card">
+        <div class="mark" aria-hidden="true">
+          <svg viewBox="0 0 34 34" fill="none">
+            <rect x="4" y="4" width="26" height="26"/>
+            <rect x="9" y="9" width="16" height="16" transform="rotate(45 17 17)"/>
+          </svg>
+        </div>
+        <p class="eyebrow">Page Starter</p>
+        <h1 id="pageTitle">作品標題</h1>
+        <p class="sub" id="statusText" aria-live="polite">一句話說明現在要做什麼。</p>
+        <div class="divider" aria-hidden="true"></div>
+
+        <form id="demoForm" novalidate>
+          <label class="sr-only" for="demoInput">示範輸入</label>
+          <input class="input demo-input" id="demoInput" type="text" maxlength="40" placeholder="輸入點什麼" autocomplete="off">
+          <p class="field-error" id="demoError" aria-live="polite"></p>
+          <button class="btn btn-primary btn-wide" type="submit">送出</button>
+        </form>
+      </article>
+    </main>
+
+    <script src="./script.js"></script>
+  </body>
+</html>

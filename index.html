@@ -33,29 +33,40 @@
       <section class="collection" aria-labelledby="collection-title">
         <div class="section-heading">
           <h2 id="collection-title">作品目錄</h2>
-          <p>1 件作品</p>
+          <p id="projectCount">載入中…</p>
         </div>
 
-        <article class="project-card">
-          <div class="project-number" aria-hidden="true">01</div>
-          <div class="project-details">
-            <p class="project-type">INTERACTIVE CARD</p>
-            <h3>Invitation Card</h3>
-            <p>用五個小步驟，完成一張專屬的約會邀請。包含日期、活動選擇與行程確認。</p>
-          </div>
-          <a class="project-link" href="./pages/invitation-card/">
-            開始體驗
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M5 12h14M13 6l6 6-6 6"/>
-            </svg>
-          </a>
-        </article>
+        <!-- 卡片由 assets/home.js 依 shared/projects.js 的清單產生。 -->
+        <div class="project-list" id="projectList"></div>
+
+        <noscript>
+          <p class="noscript-note">作品目錄需要 JavaScript 才能列出。你也可以直接前往 <a href="./pages/invitation-card/">Invitation Card</a>。</p>
+        </noscript>
       </section>
     </main>
+
+    <template id="projectCardTemplate">
+      <article class="project-card">
+        <div class="project-number" aria-hidden="true"></div>
+        <div class="project-details">
+          <p class="project-type"></p>
+          <h3 class="project-title"></h3>
+          <p class="project-summary"></p>
+        </div>
+        <a class="project-link">
+          開始體驗
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M5 12h14M13 6l6 6-6 6"/>
+          </svg>
+        </a>
+      </article>
+    </template>
 
     <footer class="site-footer">
       <span>WEB TOYBOX</span>
       <span>BUILT WITH HTML · CSS · JS</span>
     </footer>
+
+    <script type="module" src="./assets/home.js"></script>
   </body>
 </html>
