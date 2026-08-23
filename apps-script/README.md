@@ -262,10 +262,10 @@ npx clasp login
 
 **3. 建立 `.clasp.json`**
 
-複製範本並填入指令碼 ID：
+複製範本並填入指令碼 ID。**這個檔必須放在 `apps-script/` 裡面**：
 
 ```bash
-cp .clasp.json.example .clasp.json
+cp apps-script/.clasp.json.example apps-script/.clasp.json
 ```
 
 指令碼 ID 在 Apps Script 的「**專案設定 → 指令碼 ID**」。
@@ -273,12 +273,19 @@ cp .clasp.json.example .clasp.json
 ```json
 {
   "scriptId": "貼在這裡",
-  "rootDir": "apps-script",
+  "rootDir": ".",
   "fileExtension": "gs"
 }
 ```
 
-`.clasp.json` 含專案識別資訊，已列入 `.gitignore`，不會進版控。
+> **為什麼是這個位置**：clasp 3 是用「執行時的工作目錄」推算遠端檔名，不是用 `rootDir`。
+> 如果把 `.clasp.json` 放在儲存庫根目錄並設 `rootDir: "apps-script"`，遠端檔案會被命名成
+> `apps-script/main`、`apps-script/lib`，之後 `clasp pull` 就會拉出多一層的
+> `apps-script/apps-script/`。放在 `apps-script/` 內並設 `rootDir: "."` 才會得到扁平的 `main`、`lib`。
+>
+> `package.json` 的 `gs:*` 指令已經包含 `cd apps-script`，所以你在儲存庫根目錄執行就好。
+>
+> `fileExtension` 決定 `pull` 寫出的副檔名，少了它會拉成 `.js` 而跟現有的 `.gs` 並存。
 
 **4. 確認要推送的檔案**
 
@@ -286,16 +293,19 @@ cp .clasp.json.example .clasp.json
 npm run gs:status
 ```
 
-應該只看到四個 Tracked 檔案，`README.md` 會在 Untracked：
+應該只看到四個 Tracked 檔案，其餘都在 Untracked：
 
 ```text
 Tracked files:
-└─ apps-script\app-invitation-card.gs
-└─ apps-script\lib.gs
-└─ apps-script\appsscript.json
-└─ apps-script\main.gs
+└─ app-invitation-card.gs
+└─ lib.gs
+└─ main.gs
+└─ appsscript.json
 Untracked files:
-└─ apps-script\README.md
+└─ .clasp.json
+└─ .clasp.json.example
+└─ .claspignore
+└─ README.md
 ```
 
 `clasp status` 是唯一可靠的事實來源 —— 第一次推送前一定要先看這個，不要只相信 `.claspignore`。
@@ -345,3 +355,6 @@ deploymentId 是固定的，記在手邊就不用每次查。
 | `User has not enabled the Apps Script API` | 步驟 1 沒做 |
 | 推送成功但線上沒變 | 只 `push` 沒 `redeploy`。push 只更新程式碼，不會更新部署 |
 | 前端突然全部失敗 | 可能誤用 `clasp deploy` 產生了新網址，舊網址指向舊版本。用 `gs:deployments` 確認 |
+| `pull` 之後多出 `apps-script/apps-script/` | `.clasp.json` 放錯位置（見設定步驟 3）。刪掉多出來的目錄，把設定改成 `apps-script/.clasp.json` + `rootDir: "."`，再 push 一次讓遠端檔名恢復扁平 |
+| `Security Error: srcDir ... escapes project root` | `.clasp.json` 少了 `rootDir`，或用了 `-P` 搭配相對路徑。clasp 3 的路徑穿越防護要求明確指定 `rootDir` |
+| `pull` 拉出 `.js` 而不是 `.gs` | `.clasp.json` 少了 `"fileExtension": "gs"` |

@@ -1,6 +1,0 @@
-# clasp 只會推送 .gs / .js / .ts / .html 與 appsscript.json，
-# 但這裡明確排除不屬於 Apps Script 專案的檔案，避免日後加了測試或工具被誤推。
-# 推送前請務必先跑 `npm run gs:status` 確認實際清單。
-**/*.md
-test/**
-node_modules/**

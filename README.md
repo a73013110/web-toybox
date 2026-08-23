@@ -30,7 +30,6 @@ web-toybox/
 ├── robots.txt
 ├── .nojekyll                        # 關閉 GitHub Pages 的 Jekyll 處理
 ├── package.json                     # 僅供開發工具（clasp），網站本體用不到
-├── .clasp.json.example              # clasp 設定範本
 ├── LICENSE
 ├── README.md
 ├── assets/
@@ -48,6 +47,8 @@ web-toybox/
 │   └── page-starter/                # 新作品骨架，複製到 pages/ 後改名即可
 ├── apps-script/                     # Google Apps Script 後端（單一專案，所有作品共用）
 │   ├── README.md                    # 部署與維護手冊
+│   ├── .clasp.json.example          # clasp 設定範本（實際的 .clasp.json 不進版控）
+│   ├── .claspignore
 │   ├── appsscript.json
 │   ├── main.gs                      # 入口：路由、健康檢查、節流
 │   ├── lib.gs                       # 共用：驗證、試算表寫入、防公式注入

@@ -1,5 +1,5 @@
 {
   "scriptId": "在 Apps Script 的「專案設定 → 指令碼 ID」複製貼上",
-  "rootDir": "apps-script",
+  "rootDir": ".",
   "fileExtension": "gs"
 }
