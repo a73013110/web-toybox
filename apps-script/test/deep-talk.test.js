@@ -54,13 +54,16 @@ const BALANCED = DEPTHS.flatMap((depth, index) =>
   Array.from({ length: 12 }, (_, n) => row(`${'abcd'[index]}${n}`, { depth })));
 
 function makeHarness(rows = BALANCED, options = {}) {
+  const { properties, ...rest } = options;
+
   return createGatewayHarness({
     properties: {
       [SPREADSHEET_ID_PROPERTY]: 'FAKE_SPREADSHEET_ID',
-      [ADMIN_KEY_PROPERTY]: ADMIN_KEY
+      [ADMIN_KEY_PROPERTY]: ADMIN_KEY,
+      ...properties
     },
     sheets: { questions: [HEADER, ...rows] },
-    ...options
+    ...rest
   });
 }
 
@@ -512,5 +515,164 @@ describe('Deep Talk：與其他作品互不干擾', () => {
       }),
       { ok: true }
     );
+  });
+});
+
+describe('Deep Talk：用 AI 生題目', () => {
+  const GEMINI_KEY_PROPERTY = 'DEEP_TALK_GEMINI_API_KEY';
+
+  /** 包成 Gemini 的回應格式：題目陣列被序列化成 parts[0].text。 */
+  const geminiReply = (questions) => ({
+    body: { candidates: [{ content: { parts: [{ text: JSON.stringify(questions) }] } }] }
+  });
+
+  function makeAiHarness(rows, responses) {
+    return makeHarness(rows, {
+      properties: { [GEMINI_KEY_PROPERTY]: 'FAKE_API_KEY' },
+      fetch: responses
+    });
+  }
+
+  const generate = (gs, payload = {}) =>
+    ask(gs, { action: 'generate', key: ADMIN_KEY, topic: '金錢觀', depth: '深入', ...payload });
+
+  test('生成的題目寫進試算表，但一律待審', () => {
+    const gs = makeAiHarness([], [geminiReply(['你上一次為錢焦慮是什麼時候？'])]);
+
+    assert.deepEqual(generate(gs), { ok: true, added: 1, skipped: 0 });
+
+    const [, written] = gs.rows('questions');
+
+    assert.equal(written[COLUMN.text], '你上一次為錢焦慮是什麼時候？');
+    assert.equal(written[COLUMN.topics], '金錢觀');
+    assert.equal(written[COLUMN.depth], '深入');
+    assert.equal(written[COLUMN.live], false, '不該直接上架');
+    assert.equal(written[6], 'AI');
+  });
+
+  test('id 接在既有編號後面', () => {
+    const gs = makeAiHarness(
+      [row('q007'), row('q041'), row('手動加的')],
+      [geminiReply(['第一題？', '第二題？'])]
+    );
+
+    generate(gs);
+
+    const ids = gs.rows('questions').slice(1).map((entry) => entry[COLUMN.id]);
+
+    assert.deepEqual(ids.slice(-2), ['q042', 'q043']);
+  });
+
+  test('與既有題目重複的被丟掉', () => {
+    const gs = makeAiHarness(
+      [row('q001', { text: '你上一次為錢焦慮是什麼時候？' })],
+      [geminiReply(['你上一次為錢焦慮是什麼時候？', '你怎麼決定一筆錢值不值得花？'])]
+    );
+
+    assert.deepEqual(generate(gs), { ok: true, added: 1, skipped: 1 });
+  });
+
+  test('只差標點也算重複', () => {
+    const gs = makeAiHarness(
+      [row('q001', { text: '你上一次為錢焦慮，是什麼時候？' })],
+      [geminiReply(['你上一次為錢焦慮是什麼時候'])]
+    );
+
+    assert.deepEqual(generate(gs), { ok: true, added: 0, skipped: 1 });
+  });
+
+  test('同一批裡自己重複的也只留一題', () => {
+    const gs = makeAiHarness([], [geminiReply(['一樣的題目？', '一樣的題目？'])]);
+
+    assert.deepEqual(generate(gs), { ok: true, added: 1, skipped: 1 });
+  });
+
+  test('提示詞帶上主題、深度說明與既有題目', () => {
+    const gs = makeAiHarness(
+      [row('q001', { text: '你怎麼看待借錢給朋友？', topics: '金錢觀' }),
+       row('q002', { text: '你最近睡得好嗎？', topics: '日常小習慣' })],
+      [geminiReply(['新的題目？'])]
+    );
+
+    generate(gs, { count: 7, stage: '交往中' });
+
+    const prompt = JSON.parse(gs.fetchCalls[0].body).contents[0].parts[0].text;
+
+    assert.match(prompt, /金錢觀/);
+    assert.match(prompt, /產生 7 個/);
+    assert.match(prompt, /交往中/);
+    assert.match(prompt, /碰到價值觀、過去的選擇與代價/, '應該附上該深度的定義');
+    assert.match(prompt, /你怎麼看待借錢給朋友？/, '同主題的既有題目要當反例');
+    assert.doesNotMatch(prompt, /你最近睡得好嗎/, '別的主題不必塞進去');
+  });
+
+  test('要求輸出 JSON 陣列', () => {
+    const gs = makeAiHarness([], [geminiReply(['題目？'])]);
+
+    generate(gs);
+
+    const request = JSON.parse(gs.fetchCalls[0].body);
+
+    assert.equal(request.generationConfig.responseMimeType, 'application/json');
+    assert.deepEqual(request.generationConfig.responseSchema, { type: 'ARRAY', items: { type: 'STRING' } });
+    assert.equal(gs.fetchCalls[0].options.headers['x-goog-api-key'], 'FAKE_API_KEY');
+  });
+
+  test('生成後清掉快取，新題目不會被舊快取蓋住', () => {
+    const gs = makeAiHarness([row('q001')], [geminiReply(['新題目？'])]);
+
+    deck(gs); // 先讓快取存在
+    generate(gs, { depth: '破冰' }); // 與下面抽的那一疊同一層，才驗得到
+    gs.rows('questions').at(-1)[COLUMN.live] = true;
+
+    assert.equal(deck(gs).cards.length, 2);
+  });
+
+  test('沒有管理密鑰不能生成', () => {
+    const gs = makeAiHarness([], []);
+
+    assert.deepEqual(
+      ask(gs, { action: 'generate', topic: '金錢觀', depth: '深入' }),
+      { ok: false, error: 'unauthorized' }
+    );
+    assert.equal(gs.fetchCalls.length, 0, '沒過驗證就不該打 Gemini');
+  });
+
+  test('缺少主題或深度無效時被拒絕', () => {
+    assert.deepEqual(
+      generate(makeAiHarness([], []), { topic: '' }),
+      { ok: false, error: 'missing_topic' }
+    );
+    assert.deepEqual(
+      generate(makeAiHarness([], []), { depth: '超深' }),
+      { ok: false, error: 'invalid_depth' }
+    );
+  });
+
+  test('Gemini 出錯時不外洩細節，但執行紀錄查得到原因', () => {
+    const gs = makeAiHarness([], [{ status: 429, body: { error: { message: 'quota exceeded' } } }]);
+
+    assert.deepEqual(generate(gs), { ok: false, error: 'invalid_request' });
+    assert.equal(gs.rows('questions').length, 1, '只剩標題列，不該寫入任何東西');
+
+    // 前端拿不到細節，但你在執行紀錄裡要看得出是配額用完還是別的問題。
+    const logged = gs.logs.join(' ');
+
+    assert.match(logged, /429/);
+    assert.match(logged, /quota exceeded/);
+  });
+
+  test('Gemini 回傳的不是陣列時不寫入', () => {
+    // 用字串而不是物件：字串是可迭代的，少了型別檢查會被逐字當成三個題目寫進去。
+    const gs = makeAiHarness([], [{ body: { candidates: [{ content: { parts: [{ text: '"你好嗎"' }] } }] } }]);
+
+    assert.deepEqual(generate(gs), { ok: false, error: 'invalid_request' });
+    assert.equal(gs.rows('questions').length, 1);
+  });
+
+  test('沒有設定 API 金鑰時不外洩細節', () => {
+    const gs = makeHarness([], { fetch: [geminiReply(['題目？'])] });
+
+    assert.deepEqual(generate(gs), { ok: false, error: 'invalid_request' });
   });
 });

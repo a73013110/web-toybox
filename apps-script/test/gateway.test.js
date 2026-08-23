@@ -39,7 +39,7 @@ describe('載入', () => {
     assert.equal(gs.loadedFiles[0], 'lib.gs');
     assert.deepEqual(
       [...gs.loadedFiles].sort(),
-      ['app-deep-talk.gs', 'app-invitation-card.gs', 'lib.gs', 'main.gs']
+      ['app-deep-talk-ai.gs', 'app-deep-talk.gs', 'app-invitation-card.gs', 'lib.gs', 'main.gs']
     );
   });
 });

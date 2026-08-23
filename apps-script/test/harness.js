@@ -76,8 +76,12 @@ export function createGatewayHarness({
   properties = {},
   sheets = [],
   now = DEFAULT_NOW,
-  random = createSeededRandom()
+  random = createSeededRandom(),
+  fetch: fetchResponses = []
 } = {}) {
+  // UrlFetchApp 的假回應，依呼叫順序取用；用完之後再呼叫就是測試設定漏了。
+  const pendingResponses = [...fetchResponses];
+  const fetchCalls = [];
   const seeded = Array.isArray(sheets)
     ? Object.fromEntries(sheets.map((name) => [name, []]))
     : sheets;
@@ -89,6 +93,9 @@ export function createGatewayHarness({
 
   let cache = {};
   let clock = now;
+
+  // 線上是寫進執行紀錄的，測試裡收起來，才驗得到錯誤訊息夠不夠診斷得出問題。
+  const logs = [];
 
   class FakeDate extends Date {
     constructor(...args) {
@@ -119,7 +126,11 @@ export function createGatewayHarness({
   };
 
   const sandbox = {
-    console: { error() {}, log() {}, warn() {} },
+    console: {
+      error: (...args) => logs.push(args.map(String).join(' ')),
+      log: (...args) => logs.push(args.map(String).join(' ')),
+      warn: (...args) => logs.push(args.map(String).join(' '))
+    },
     Date: FakeDate,
 
     ContentService: {
@@ -138,6 +149,23 @@ export function createGatewayHarness({
       openById: () => ({
         getSheetByName: (name) => (tables.has(name) ? createFakeSheet(tables.get(name)) : null)
       })
+    },
+
+    UrlFetchApp: {
+      fetch: (url, options) => {
+        fetchCalls.push({ url, options, body: options?.payload });
+
+        if (pendingResponses.length === 0) {
+          throw new Error(`測試沒有為這次 UrlFetchApp.fetch 準備回應：${url}`);
+        }
+
+        const next = pendingResponses.shift();
+
+        return {
+          getResponseCode: () => next.status ?? 200,
+          getContentText: () => (typeof next.body === 'string' ? next.body : JSON.stringify(next.body))
+        };
+      }
     },
 
     // 測試是單執行緒的，鎖不需要真的做事。
@@ -190,6 +218,12 @@ export function createGatewayHarness({
 
     /** 推進時間，用來測試以時間分桶的節流與快取過期。 */
     advanceTime: (ms) => { clock += ms; },
+
+    /** 送出過的 UrlFetchApp 請求，用來檢查提示詞與參數。 */
+    fetchCalls,
+
+    /** console 收到的訊息，對應線上的執行紀錄。 */
+    logs,
 
     /** 載入的 .gs 檔清單，確認沒有漏掉。 */
     loadedFiles: files

@@ -57,6 +57,8 @@ Apps Script 沒有真正的資料夾，所有 `.gs` 檔共用同一個全域範�
 | `main.gs` | 入口：`doPost` 路由、`doGet` 健康檢查、節流上限 |
 | `lib.gs` | 共用工具：回應格式、欄位驗證、試算表寫入、防公式注入 |
 | `app-invitation-card.gs` | 邀請卡的處理函式 |
+| `app-deep-talk.gs` | Deep Talk：發牌、收回饋、熱門排行 |
+| `app-deep-talk-ai.gs` | Deep Talk：用 Gemini 生成新題目 |
 | `test/` | 回歸測試，不會被推送到 Apps Script |
 
 > **跨檔案的順序陷阱**：函式宣告會被提升，跨檔案呼叫沒問題；但「頂層的 `const` 引用另一個檔案的頂層 `const`」可能讀到 `undefined`，因為檔案執行順序不保證。所以路由寫成 `routeRequest()` 函式而不是物件常數表。在函式**內部**引用其他檔案的常數則是安全的。
@@ -196,6 +198,10 @@ function handleMyToy(payload) {
 
 `normalizeText` / `normalizeInteger` / `normalizeTextList` / `openSheet` / `appendRowSafely` / `requestError` 都由 `lib.gs` 提供，不需要重寫。
 
+處理函式如果**回傳一個物件**，那個物件會被併進回應裡（`{ ...回傳值, ok: true }`）。只負責寫入的作品回傳 `undefined` 就好。需要回傳資料的例子見 `app-deep-talk.gs`。
+
+需要快取、管理密鑰或洗牌時，`lib.gs` 另外提供 `readCachedJson` / `writeCachedJson` / `clearCachedJson`（會自動分塊，繞過 CacheService 每個 key 100KB 的上限）、`requireAdminKey`、`shuffled`。
+
 ### 測試
 
 Apps Script 沒辦法在本機執行，正常只能「部署 → 手動送一筆 → 去試算表看」，而且測防公式注入、節流、長度上限這些路徑會在試算表留下垃圾資料。
@@ -232,6 +238,76 @@ gs.advanceTime(60_000);                                                // → �
 - **健康檢查**：用瀏覽器開 `/exec`，看得到 JSON 就代表部署活著
 - **執行紀錄**：Apps Script 左側「**執行作業**」，可以看到每次 `doPost` 的狀態與 `console.error` 的內容
 - 前端拿到的錯誤一律是簡短代碼（見下表），詳細訊息只留在執行紀錄，避免洩漏內部結構
+
+## Deep Talk 題庫
+
+Deep Talk 的題目不在程式碼裡，而是在一張 Google Sheet。加題目、改題目、下架題目都只要編輯試算表，不用碰程式也不用重新部署。
+
+### 試算表欄位
+
+工作表名稱必須是 `questions`，第一列是標題列，欄位順序不能換（順序定義在 `app-deep-talk.gs` 的 `DEEPTALK_COLUMN`）。
+
+| 欄 | 標題 | 內容 | 說明 |
+| --- | --- | --- | --- |
+| A | id | `q001` | 回饋靠它對應，不要重複 |
+| B | 題目 | 你什麼時候開始覺得，爸媽也只是普通人？ | |
+| C | 主題標籤 | `童年與家庭、價值觀` | 可多值，頓號分隔 |
+| D | 深度 | `深入` | 單選：破冰／認識／深入／坦白 |
+| E | 關係階段 | `曖昧中、交往中` | 可多值。**留空代表通用** |
+| F | 上架 | 核取方塊 | 打勾才會出現在網站上 |
+| G | 來源 | `AI` 或 `手寫` | 方便你觀察 AI 生的品質 |
+| H | 建立時間 | | AI 寫入時自動填 |
+| I | 讚 | `42` | 程式回寫，不要手動改 |
+| J | 跳過 | `7` | 程式回寫，不要手動改 |
+
+C、D、E 三欄建議用「資料驗證 → 下拉式選單」，避免打錯字。選項必須與 `pages/deep-talk/taxonomy.js` 完全一致。
+
+### 指令碼屬性
+
+| 屬性 | 必要 | 用途 |
+| --- | --- | --- |
+| `DEEP_TALK_SPREADSHEET_ID` | 是 | 題庫試算表的 ID |
+| `DEEP_TALK_ADMIN_KEY` | 是 | 清快取與觸發 AI 生成用，自己隨便設一組長字串 |
+| `DEEP_TALK_GEMINI_API_KEY` | 只有要用 AI 生題目才需要 | 從 Google AI Studio 申請 |
+| `DEEP_TALK_GEMINI_MODEL` | 否 | 預設 `gemini-2.5-flash`，換模型時改這裡就好 |
+
+### 動作
+
+前端一律送 `{ app: 'deep-talk', payload: { action: ... } }`。
+
+| action | 誰用 | 說明 |
+| --- | --- | --- |
+| `deck` | 網站 | 依條件回傳一疊 8 張，含票數 |
+| `feedback` | 網站 | 一場結束時批次回寫讚／跳過 |
+| `trending` | 網站 | 熱門排行 |
+| `flush` | 只有你 | 清掉題庫快取，需要 `key` |
+| `generate` | 只有你 | 叫 Gemini 生一批題目，需要 `key` |
+
+### 快取
+
+整份題庫會快取 5 分鐘（`DEEPTALK_CACHE_SECONDS`），所以**改完試算表不會立刻生效**。想立刻生效：
+
+```bash
+curl -L -X POST "<你的 /exec 網址>" -H "Content-Type: text/plain;charset=utf-8" -d '{"app":"deep-talk","payload":{"action":"flush","key":"<你的 DEEP_TALK_ADMIN_KEY>"}}'
+```
+
+或者等五分鐘。用 AI 生成題目時會自動清快取，不用手動清。
+
+### 用 Gemini 生新題目
+
+刻意做成**手動觸發**，不是排程 —— 生成要花好幾秒又燒配額，你按一次才跑一次。
+
+最簡單的方式是在 Apps Script 編輯器裡打開 `app-deep-talk-ai.gs`，改 `deepTalkGenerateFromEditor()` 裡的主題與深度，按執行，再去試算表看結果。
+
+生出來的題目**「上架」欄一律留空**，你自己掃過一遍、勾起來才會出現在網站上。這道人工關卡是刻意保留的：AI 生的東西品質會飄，而且會一直想生出跟既有題目八成像的東西。程式只擋得掉「一模一樣」與「只差標點」的重複，語意相近的還是要靠你的眼睛。
+
+同主題的既有題目會被餵回去當「不要重複這些」的反例，所以題庫越大、生出來的越不容易撞題，但提示詞也越長（上限 60 題）。
+
+### 題目不夠時會怎樣
+
+一疊固定 8 張。某一層題目不夠時會從計畫涵蓋的其他層補，但絕不會超過使用者選的深度上限；真的湊不滿就發幾張算幾張。完全沒有符合條件的題目時前端會提示使用者放寬條件。
+
+被跳過的比例超過 60%（且累積至少 10 票）的題目會自動停止出牌，也不會上熱門榜。要救回來就把票數歸零。
 
 ## 前端如何呼叫
 

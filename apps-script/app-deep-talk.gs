@@ -88,6 +88,8 @@ function handleDeepTalk(payload) {
       return deepTalkTrending(payload);
     case 'flush':
       return deepTalkFlush(payload);
+    case 'generate':
+      return deepTalkGenerateAction(payload); // app-deep-talk-ai.gs
     default:
       throw requestError('unknown_action');
   }
