@@ -54,7 +54,8 @@ web-toybox/
 │   ├── appsscript.json
 │   ├── main.gs                      # 入口：路由、健康檢查、節流
 │   ├── lib.gs                       # 共用：驗證、試算表寫入、防公式注入
-│   └── app-invitation-card.gs       # 邀請卡的處理函式
+│   ├── app-invitation-card.gs       # 邀請卡的處理函式
+│   └── test/                        # 後端回歸測試（npm test）
 └── pages/
     └── invitation-card/
         ├── README.md
@@ -161,7 +162,13 @@ python -m http.server 8000
 
 ## 修改與測試流程
 
-此專案沒有自動化測試或建置步驟。提交前至少手動確認：
+後端（`apps-script/`）有自動化測試：
+
+```powershell
+npm test
+```
+
+前端沒有自動化測試。提交前至少手動確認：
 
 - 首頁與更動到的作品在桌面、窄螢幕（375px）下皆可正常顯示，沒有水平捲軸。
 - 鍵盤可以完成整個互動流程。
@@ -169,6 +176,8 @@ python -m http.server 8000
 - 瀏覽器主控台沒有未處理錯誤。
 
 作品各自的測試重點寫在該作品的 README，例如[邀請卡的測試清單](./pages/invitation-card/README.md#測試清單)。
+
+後端測試的寫法與涵蓋範圍見 [apps-script/README.md](./apps-script/README.md#測試)。
 
 JavaScript 語法可用 Node.js 額外檢查；此步驟非執行網站的必要條件：
 

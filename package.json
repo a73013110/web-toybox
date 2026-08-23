@@ -2,9 +2,11 @@
   "name": "web-toybox",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "description": "開發工具設定。網站本體維持零建置，部署到 GitHub Pages 完全不需要這個檔案。",
   "license": "MIT",
   "scripts": {
+    "test": "node --test \"apps-script/test/*.test.js\"",
     "gs:push": "cd apps-script && clasp push",
     "gs:deploy": "node scripts/gs-deploy.mjs",
     "gs:status": "cd apps-script && clasp status",

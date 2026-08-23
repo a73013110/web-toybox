@@ -6,17 +6,15 @@
 
 ## 改了 `.gs` 之後要跑什麼
 
-在儲存庫根目錄，兩行：
+在儲存庫根目錄：
 
 ```bash
-npm run gs:push
+npm test                          # 確認沒改壞
+npm run gs:push                   # 上傳程式碼（此時線上還沒變）
+npm run gs:deploy -- "改了什麼"    # 生效，網址不變
 ```
 
-```bash
-npm run gs:deploy -- "改了什麼"
-```
-
-`push` 上傳程式碼（此時線上還沒變），`deploy` 讓它生效。**網址不變，前端不用動。**
+**網址不變，前端不用動。**
 
 說明可以省略：`npm run gs:deploy`。部署 ID 會自動從 `shared/config.js` 讀出來，不用去查。
 
@@ -26,6 +24,7 @@ npm run gs:deploy -- "改了什麼"
 
 | 想做的事 | 指令 |
 | --- | --- |
+| 跑測試 | `npm test` |
 | 看會推送哪些檔案 | `npm run gs:status` |
 | 出錯了想看執行紀錄 | `npm run gs:logs` |
 | 在網頁編輯器改過，想拉回本地 | `npm run gs:pull` |
@@ -58,6 +57,7 @@ Apps Script 沒有真正的資料夾，所有 `.gs` 檔共用同一個全域範�
 | `main.gs` | 入口：`doPost` 路由、`doGet` 健康檢查、節流上限 |
 | `lib.gs` | 共用工具：回應格式、欄位驗證、試算表寫入、防公式注入 |
 | `app-invitation-card.gs` | 邀請卡的處理函式 |
+| `test/` | 回歸測試，不會被推送到 Apps Script |
 
 > **跨檔案的順序陷阱**：函式宣告會被提升，跨檔案呼叫沒問題；但「頂層的 `const` 引用另一個檔案的頂層 `const`」可能讀到 `undefined`，因為檔案執行順序不保證。所以路由寫成 `routeRequest()` 函式而不是物件常數表。在函式**內部**引用其他檔案的常數則是安全的。
 
@@ -195,6 +195,37 @@ function handleMyToy(payload) {
 ```
 
 `normalizeText` / `normalizeInteger` / `normalizeTextList` / `openSheet` / `appendRowSafely` / `requestError` 都由 `lib.gs` 提供，不需要重寫。
+
+### 測試
+
+Apps Script 沒辦法在本機執行，正常只能「部署 → 手動送一筆 → 去試算表看」，而且測防公式注入、節流、長度上限這些路徑會在試算表留下垃圾資料。
+
+`test/harness.js` 在 Node 裡把 `SpreadsheetApp`、`CacheService`、`LockService` 等全域物件換成假的，讓 `.gs` 的邏輯可以直接在本機驗證：
+
+```bash
+npm test
+```
+
+目前涵蓋 40 項：路由、欄位驗證、長度與數量上限、防公式注入、節流的時間分桶與快取存活時間，以及內部錯誤不外洩細節。
+
+這些測試做過變異測試驗證 —— 刻意改壞防注入、節流上限、快取存活時間、路由 key、錯誤標記等 13 個地方，每一個都會讓測試失敗。
+
+新增作品時，在 `test/` 建立 `<作品名稱>.test.js`，沿用同一個 harness：
+
+```js
+import { createGatewayHarness } from './harness.js';
+
+const gs = createGatewayHarness({
+  properties: { MY_TOY_SPREADSHEET_ID: 'FAKE' },
+  sheets: ['responses']
+});
+
+gs.post({ app: 'my-toy', payload: { schemaVersion: 1, value: 'x' } }); // → 已解析的 JSON
+gs.rows('responses');                                                  // → 寫入的列
+gs.advanceTime(60_000);                                                // → 測試節流
+```
+
+至少涵蓋：欄位驗證失敗時**不寫入**、長度上限、以及該作品特有的規則。
 
 ### 除錯
 
