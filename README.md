@@ -18,6 +18,7 @@
 | 作品 | 說明 | 文件 |
 | --- | --- | --- |
 | [Invitation Card](https://a73013110.github.io/web-toybox/pages/invitation-card/) | 五步驟互動邀請卡，結果寫入 Google Sheet | [說明](./pages/invitation-card/README.md) |
+| [Deep Talk](https://a73013110.github.io/web-toybox/pages/deep-talk/) | 抽一疊由淺入深的問題，題庫在 Google Sheet，熱門度由使用者投票決定 | [說明](./pages/deep-talk/README.md) |
 
 作品清單由 [`shared/projects.js`](./shared/projects.js) 提供，首頁的卡片與件數會自動產生。
 
@@ -117,6 +118,8 @@ try {
 靜態網站沒有後端。需要寫入 Google Sheet、保管 API 金鑰之類的能力時，由 Google Apps Script Web App 承接。
 
 **所有作品共用一個 Apps Script 專案與一組部署網址**，靠請求中的 `app` 欄位分流。新增作品不需要再開新專案、也不需要再記一組網址。
+
+後端也負責保管 API 金鑰。Deep Talk 用它呼叫 Gemini 生成新題目 —— 金鑰只存在 Apps Script 的指令碼屬性，不會出現在前端。
 
 部署步驟、日常維護、新增作品要改哪裡、除錯方式與已知限制（不支援串流、冷啟動、配額、無法辨識用戶端 IP）見 [apps-script/README.md](./apps-script/README.md)。
 

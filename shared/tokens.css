@@ -14,9 +14,17 @@
   --paper-deep: #eeece7;
   --surface: rgba(255, 255, 255, 0.68);
 
-  /* 金 —— 強調色 */
+  /* 金 —— 預設色票 */
   --gold: #a8874f;
   --gold-soft: rgba(168, 135, 79, 0.35);
+
+  /*
+   * 強調色的「角色」。共用元件一律用這三個，不直接用 --gold，
+   * 作品只要在自己的 style.css 覆寫這三行就能換掉整頁調性。
+   */
+  --accent: var(--gold);
+  --accent-soft: var(--gold-soft);
+  --accent-faint: rgba(168, 135, 79, 0.12);
 
   /* 字型 */
   --font-sans: Inter, -apple-system, BlinkMacSystemFont, "PingFang TC", sans-serif;

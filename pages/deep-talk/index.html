@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="description" content="挑好關係、深度與想聊的主題，抽一疊由淺入深的問題，陪兩個人聊得再深一點。">
+    <title>Deep Talk — Web Toybox</title>
+    <link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700&family=Noto+Serif+TC:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../../shared/tokens.css">
+    <link rel="stylesheet" href="../../shared/base.css">
+    <link rel="stylesheet" href="../../shared/ui.css">
+    <link rel="stylesheet" href="./style.css">
+  </head>
+  <body>
+    <div class="dusk" aria-hidden="true"></div>
+    <div class="grain" aria-hidden="true"></div>
+
+    <a class="back-link" href="../../" aria-label="回到作品目錄">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5m6-6-6 6 6 6"/></svg>
+      <span>作品目錄</span>
+    </a>
+
+    <main class="stage">
+      <!-- ---------- 開場：分三步挑條件 ---------- -->
+      <section class="screen is-active" id="screenSetup" aria-labelledby="setupTitle">
+        <h1 class="sr-only" id="setupTitle">挑選這一疊的條件</h1>
+
+        <div class="panel">
+          <div class="progress" aria-hidden="true"><span id="setupProgress"></span></div>
+
+          <button class="step-back" id="setupBack" type="button" hidden aria-label="回到上一步">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5m6-6-6 6 6 6"/></svg>
+            <span>上一步</span>
+          </button>
+
+          <div class="step is-active" data-step="1">
+            <div class="mark" aria-hidden="true">
+              <svg viewBox="0 0 34 34" fill="none">
+                <circle cx="12" cy="17" r="8"/>
+                <circle cx="22" cy="17" r="8"/>
+              </svg>
+            </div>
+            <p class="eyebrow">Step One</p>
+            <h2>你們是什麼關係？</h2>
+            <p class="sub">同一個問題，在不同階段問起來完全不一樣。</p>
+            <div class="choice-grid" id="stageGrid" role="radiogroup" aria-label="關係階段"></div>
+          </div>
+
+          <div class="step" data-step="2">
+            <div class="mark" aria-hidden="true">
+              <svg viewBox="0 0 34 34" fill="none">
+                <path d="M5 11h24M8 17h18M12 23h10M15 29h4"/>
+              </svg>
+            </div>
+            <p class="eyebrow">Step Two</p>
+            <h2>今天想聊多深？</h2>
+            <p class="sub">這是這一疊的天花板。前面幾張會先暖場，聊開了才往下走。</p>
+            <div class="choice-grid" id="depthGrid" role="radiogroup" aria-label="深度上限"></div>
+          </div>
+
+          <div class="step" data-step="3">
+            <div class="mark" aria-hidden="true">
+              <svg viewBox="0 0 34 34" fill="none">
+                <path d="M17 5l3.6 7.9 8.4.9-6.3 5.8 1.8 8.4L17 23.8 9.5 28l1.8-8.4L5 13.8l8.4-.9z"/>
+              </svg>
+            </div>
+            <p class="eyebrow">Step Three</p>
+            <h2>有什麼想聊、什麼不想碰？</h2>
+            <p class="sub">點一下標成「想聊」，再點一下標成「不要」。不標就是隨緣。</p>
+
+            <div class="topic-grid" id="topicGrid"></div>
+
+            <p class="topic-summary" id="topicSummary" aria-live="polite"></p>
+            <p class="field-error" id="setupError" aria-live="polite"></p>
+            <button class="btn btn-primary btn-wide" id="startBtn" type="button">開始</button>
+          </div>
+        </div>
+
+        <p class="panel-foot">
+          <button class="btn btn-link" id="toTrending" type="button">看看大家最愛聊的題目</button>
+        </p>
+      </section>
+
+      <!-- ---------- 洗牌：把載入藏在動畫底下 ---------- -->
+      <section class="screen" id="screenShuffle" aria-labelledby="shuffleTitle">
+        <div class="shuffle" aria-hidden="true">
+          <span class="shuffle-card"></span>
+          <span class="shuffle-card"></span>
+          <span class="shuffle-card"></span>
+        </div>
+        <p class="shuffle-label" id="shuffleTitle" role="status">洗牌中…</p>
+      </section>
+
+      <!-- ---------- 抽卡 ---------- -->
+      <section class="screen" id="screenCards" aria-labelledby="cardQuestion">
+        <div class="deck">
+          <article class="card" id="questionCard">
+            <header class="card-top">
+              <span class="card-depth" id="cardDepth"></span>
+              <span class="card-count" id="cardCount"></span>
+            </header>
+
+            <p class="card-question" id="cardQuestion"></p>
+
+            <ul class="card-topics" id="cardTopics"></ul>
+            <p class="card-loved" id="cardLoved" hidden></p>
+
+            <div class="card-share">
+              <button class="chip-btn" id="copyBtn" type="button">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+                <span id="copyLabel">複製題目</span>
+              </button>
+              <button class="chip-btn" id="imageBtn" type="button">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m3 16 5-5 4 4 3-3 6 6"/></svg>
+                <span id="imageLabel">存成卡片</span>
+              </button>
+            </div>
+          </article>
+        </div>
+
+        <div class="vote">
+          <button class="btn btn-primary" id="likeBtn" type="button">很讚，下一題</button>
+          <button class="btn btn-link" id="skipBtn" type="button">跳過這題</button>
+        </div>
+      </section>
+
+      <!-- ---------- 收尾 ---------- -->
+      <section class="screen" id="screenEnd" aria-labelledby="endTitle">
+        <div class="panel">
+          <div class="mark" aria-hidden="true">
+            <svg viewBox="0 0 34 34" fill="none">
+              <circle cx="17" cy="17" r="14"/>
+              <path class="mark-ink" d="M11 17l4 4 8-8"/>
+            </svg>
+          </div>
+          <p class="eyebrow">That's a wrap</p>
+          <h2 id="endTitle">今天聊了 <span id="endCount">8</span> 題</h2>
+          <p class="sub" id="endSummary"></p>
+          <div class="divider" aria-hidden="true"></div>
+          <p class="send-status" id="sendStatus" role="status"></p>
+          <button class="btn btn-primary btn-wide" id="againBtn" type="button">再來一疊</button>
+          <button class="btn btn-link" id="restartBtn" type="button">換個條件重新開始</button>
+        </div>
+      </section>
+
+      <!-- ---------- 熱門排行 ---------- -->
+      <section class="screen" id="screenTrending" aria-labelledby="trendingTitle">
+        <div class="panel panel-wide">
+          <p class="eyebrow">Most Loved</p>
+          <h2 id="trendingTitle">大家最愛聊的題目</h2>
+          <p class="sub">熱門度來自真實使用者按下的「很讚」，不是誰猜的。</p>
+          <div class="divider" aria-hidden="true"></div>
+
+          <ol class="rank-list" id="rankList"></ol>
+          <p class="rank-empty" id="rankEmpty" hidden></p>
+
+          <button class="btn btn-link" id="trendingBack" type="button">回上一頁</button>
+        </div>
+      </section>
+
+      <!-- ---------- 出錯 ---------- -->
+      <section class="screen" id="screenError" aria-labelledby="errorTitle">
+        <div class="panel">
+          <p class="eyebrow">Something went wrong</p>
+          <h2 id="errorTitle">沒能拿到題目</h2>
+          <p class="sub" id="errorMessage"></p>
+          <div class="divider" aria-hidden="true"></div>
+          <button class="btn btn-primary btn-wide" id="retryBtn" type="button">再試一次</button>
+          <button class="btn btn-link" id="errorBack" type="button">回去改條件</button>
+        </div>
+      </section>
+
+      <footer class="page-footer">
+        <span>Deep Talk</span>
+        <span id="stageLabel"></span>
+      </footer>
+    </main>
+
+    <template id="choiceTemplate">
+      <label class="choice">
+        <input type="radio">
+        <span class="choice-body">
+          <strong></strong>
+          <small></small>
+        </span>
+      </label>
+    </template>
+
+    <template id="topicTemplate">
+      <button class="topic" type="button" data-state="none">
+        <span class="topic-name"></span>
+        <span class="topic-state" aria-hidden="true"></span>
+      </button>
+    </template>
+
+    <template id="rankTemplate">
+      <li class="rank-item">
+        <span class="rank-number"></span>
+        <div class="rank-body">
+          <p class="rank-question"></p>
+          <p class="rank-meta"></p>
+        </div>
+      </li>
+    </template>
+
+    <script type="module" src="./script.js"></script>
+  </body>
+</html>

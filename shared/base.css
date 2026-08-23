@@ -37,7 +37,7 @@ a {
 button:focus-visible,
 input:focus-visible,
 a:focus-visible {
-  outline: 3px solid var(--gold);
+  outline: 3px solid var(--accent);
   outline-offset: 4px;
 }
 

@@ -15,6 +15,12 @@ export const PROJECTS = [
     type: 'INTERACTIVE CARD',
     title: 'Invitation Card',
     summary: '用五個小步驟，完成一張專屬的約會邀請。包含日期、活動選擇與行程確認。'
+  },
+  {
+    slug: 'deep-talk',
+    type: 'CONVERSATION DECK',
+    title: 'Deep Talk',
+    summary: '挑好關係、深度與想聊的主題，抽一疊由淺入深的問題。熱門度由真實使用者投票決定，不是誰猜的。'
   }
 ];
 

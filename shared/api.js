@@ -64,6 +64,23 @@ export async function submitToAppsScript(app, payload, options = {}) {
 }
 
 /*
+ * 在頁面關閉的當下送出資料。
+ *
+ * 用 sendBeacon：瀏覽器會在頁面卸載後自行完成請求，一般的 fetch 到這個時機
+ * 多半會被中斷。代價是拿不到結果，因此只適合「送不到也無所謂」的補送。
+ * 型別必須是 text/plain，才不會觸發 Apps Script 不支援的 CORS 預檢。
+ */
+export function beaconToAppsScript(app, payload, options = {}) {
+  const { endpoint = APPS_SCRIPT_ENDPOINT } = options;
+
+  if (!navigator.sendBeacon) return false;
+
+  const body = new Blob([JSON.stringify({ app, payload })], { type: 'text/plain;charset=utf-8' });
+
+  return navigator.sendBeacon(endpoint, body);
+}
+
+/*
  * 把送出失敗轉成可以直接顯示給使用者的訊息。
  * 作品可以自行覆寫，但預設涵蓋共通的幾種情況。
  */
@@ -76,6 +93,7 @@ export function describeSubmitError(error) {
     case 'rate_limited':
       return '目前送出的人有點多，請稍等一下再試。';
     case 'unknown_app':
+    case 'unknown_action':
     case 'unsupported_schema':
       return '這個頁面的版本太舊了，請重新整理後再試一次。';
     default:
