@@ -10,7 +10,7 @@
  *
  * 部署與遷移步驟見 apps-script/README.md。
  */
-export const APPS_SCRIPT_ENDPOINT = 'https://script.google.com/macros/s/AKfycbxuIIPk4q0qd5EoHOBAZe606OrZtzo1m3gychjEGSfsaqxTzIY8RFMYS3097yUpu_gq/exec';
+export const APPS_SCRIPT_ENDPOINT = 'https://script.google.com/macros/s/AKfycby-Do-rPfjTh9s45SBwuAY0H55DpOI6hoVPo8QPghnk45b1xtN_CtpYYUHUeWmmwCWKFg/exec';
 
 // 送出請求的預設逾時。Apps Script 冷啟動可能要數秒，不要設太短。
 export const SUBMIT_TIMEOUT_MS = 30000;
