@@ -273,8 +273,14 @@ K、L、M 是時事題專用的。三欄只要缺一欄，那一題就只是普�
 | --- | --- | --- |
 | `DEEP_TALK_SPREADSHEET_ID` | 是 | 題庫試算表的 ID |
 | `DEEP_TALK_ADMIN_KEY` | 是 | 清快取與觸發 AI 生成用，自己隨便設一組長字串 |
-| `DEEP_TALK_GEMINI_API_KEY` | 只有要用 AI 生題目才需要 | 從 Google AI Studio 申請 |
-| `DEEP_TALK_GEMINI_MODEL` | 否 | 預設 `gemini-3.7-flash`。**必須是 Gemini 3 以上** |
+| `GEMINI_API_KEY` | 只有要用 AI 生題目才需要 | 從 Google AI Studio 申請。**全站共用一把** |
+| `GEMINI_MODEL` | 否 | 預設 `gemini-3.7-flash`。**必須是 Gemini 3 以上** |
+
+`DEEP_TALK_GEMINI_API_KEY` 與 `DEEP_TALK_GEMINI_MODEL` 是作品專屬的覆寫，設了就蓋過共用的那組。平常不用設。
+
+**為什麼是共用一把，不是每個作品一把**：Gemini 的速率限制綁在 Google Cloud 專案上，不是綁在金鑰上 —— 同一個專案底下開幾把金鑰都吃同一份額度，分開只是多一個要輪替的東西。而且所有作品共用同一個 Apps Script 專案與同一份指令碼屬性，金鑰外洩是整份一起沒，分開也縮不了爆炸半徑。真要隔離額度得開不同的 Cloud 專案，那是另一個層級的決定。
+
+申請金鑰時記得在 Cloud Console 把它**限制成只能呼叫 Generative Language API**。IP 限制在這裡用不了：Apps Script 的對外 IP 不固定。
 
 模型限制的原因：時事題要在同一個請求裡同時用搜尋工具與結構化輸出，Gemini 3 才支援，2.5 會直接回 400（`Search Grounding can't be used with JSON mode`）。不生時事題的話 2.5 仍然可用。
 

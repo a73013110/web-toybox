@@ -834,6 +834,47 @@ describe('Deep Talk：生成時事題', () => {
   const generateNews = (gs, payload = {}) =>
     ask(gs, { action: 'generate-news', key: ADMIN_KEY, ...payload });
 
+  /*
+   * 金鑰預設是全站共用的：Gemini 的額度綁在 Cloud 專案上，
+   * 同一個專案開幾把金鑰都吃同一份配額，分開只是多一個要輪替的東西。
+   * 作品專屬的覆寫留著，是為了讓這個決定可以反悔。
+   */
+  describe('金鑰來源', () => {
+    const callWith = (properties) => {
+      const gs = makeHarness([], { properties, fetch: [reply([candidate()])] });
+      const result = generateNews(gs);
+
+      return { result, gs };
+    };
+
+    test('只設共用金鑰就能用', () => {
+      const { result, gs } = callWith({ GEMINI_API_KEY: 'SHARED' });
+
+      assert.equal(result.ok, true);
+      assert.equal(gs.fetchCalls[0].options.headers['x-goog-api-key'], 'SHARED');
+    });
+
+    test('作品專屬的金鑰蓋過共用的', () => {
+      const { gs } = callWith({ GEMINI_API_KEY: 'SHARED', [GEMINI_KEY_PROPERTY]: 'MINE' });
+
+      assert.equal(gs.fetchCalls[0].options.headers['x-goog-api-key'], 'MINE');
+    });
+
+    test('共用的模型也吃得到', () => {
+      const { gs } = callWith({ GEMINI_API_KEY: 'SHARED', GEMINI_MODEL: 'gemini-x-flash' });
+
+      assert.match(gs.fetchCalls[0].url, /gemini-x-flash/);
+    });
+
+    test('兩個都沒設時，錯誤訊息要講得出該設哪一個', () => {
+      const { result, gs } = callWith({});
+
+      assert.equal(result.ok, false);
+      assert.equal(gs.fetchCalls.length, 0);
+      assert.match(gs.logs.join(' '), /GEMINI_API_KEY/);
+    });
+  });
+
   test('同時開搜尋與讀網頁兩個工具', () => {
     const gs = makeNewsHarness([], [reply([candidate()])]);
 

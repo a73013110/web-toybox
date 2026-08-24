@@ -11,9 +11,12 @@
  * 生出來的題目「上架」欄一律留空，要你自己在試算表掃過一遍才會出現在網站上。
  * AI 生的東西品質會飄，這道人工關卡是刻意保留的，時事題尤其不能放寬。
  *
- * 需要兩個指令碼屬性：
- *   DEEP_TALK_GEMINI_API_KEY   從 Google AI Studio 申請
- *   DEEP_TALK_GEMINI_MODEL     選填，預設 gemini-3.7-flash
+ * 需要兩個指令碼屬性（全站共用，定義在 lib.gs）：
+ *   GEMINI_API_KEY   從 Google AI Studio 申請
+ *   GEMINI_MODEL     選填，預設 gemini-3.7-flash
+ *
+ * 想讓這個作品用不一樣的金鑰或模型，就設 DEEP_TALK_GEMINI_API_KEY／
+ * DEEP_TALK_GEMINI_MODEL，會蓋過共用的那組。
  *
  * 模型必須是 Gemini 3 以上：時事題要在同一個請求裡同時用搜尋工具與結構化輸出，
  * 2.5 會直接回 400（Search Grounding can't be used with JSON mode）。
@@ -151,14 +154,15 @@ function deepTalkParseJsonLoosely(text) {
  * 時事題要開 googleSearch 與 urlContext，一般生題不需要。
  */
 function deepTalkGeminiCall(prompt, options) {
-  const properties = PropertiesService.getScriptProperties();
-  const apiKey = properties.getProperty(DEEPTALK_GEMINI_KEY_PROPERTY);
+  const apiKey = appOrSharedProperty(DEEPTALK_GEMINI_KEY_PROPERTY, GEMINI_API_KEY_PROPERTY);
 
   if (!apiKey) {
-    throw new Error(`缺少指令碼屬性：${DEEPTALK_GEMINI_KEY_PROPERTY}`);
+    throw new Error(
+      `缺少指令碼屬性：${GEMINI_API_KEY_PROPERTY}（或作品專屬的 ${DEEPTALK_GEMINI_KEY_PROPERTY}）`);
   }
 
-  const model = properties.getProperty(DEEPTALK_GEMINI_MODEL_PROPERTY) || DEEPTALK_GEMINI_DEFAULT_MODEL;
+  const model = appOrSharedProperty(DEEPTALK_GEMINI_MODEL_PROPERTY, GEMINI_MODEL_PROPERTY)
+    || DEEPTALK_GEMINI_DEFAULT_MODEL;
   const url = `${DEEPTALK_GEMINI_ENDPOINT}/${model}:generateContent`;
   const request = {
     contents: [{ parts: [{ text: prompt }] }],

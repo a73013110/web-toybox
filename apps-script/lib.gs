@@ -199,6 +199,31 @@ function clearCachedJson(key) {
 // ========================================
 
 /*
+ * 全站共用的 Gemini 設定。作品可以各自覆寫，但預設共用同一組。
+ *
+ * 共用而不是每個作品一把金鑰，是因為 Gemini 的速率限制綁在 Google Cloud 專案上，
+ * 不是綁在金鑰上 —— 同一個專案底下開幾把金鑰都吃同一份額度，分開只是多一個要輪替
+ * 的東西。而且所有作品共用同一個 Apps Script 專案與同一份指令碼屬性，金鑰真的外洩
+ * 是整份一起沒，分開也縮不了爆炸半徑。
+ *
+ * 要真的隔離額度得開不同的 Cloud 專案，那是另一個層級的決定。
+ */
+const GEMINI_API_KEY_PROPERTY = 'GEMINI_API_KEY';
+const GEMINI_MODEL_PROPERTY = 'GEMINI_MODEL';
+
+/*
+ * 讀設定：先看作品專屬的，沒有才用共用的。
+ *
+ * 留著作品專屬的覆寫，是為了讓「共用一把」這個決定可以反悔 ——
+ * 哪天某個作品真的需要獨立的額度或計費，加一個屬性就好，不用改程式碼。
+ */
+function appOrSharedProperty(appProperty, sharedProperty) {
+  const properties = PropertiesService.getScriptProperties();
+
+  return properties.getProperty(appProperty) || properties.getProperty(sharedProperty);
+}
+
+/*
  * 驗證管理用密鑰。密鑰存在指令碼屬性，不寫進程式碼也不出現在前端。
  * 用於清快取、觸發 AI 生成這類只有作者該執行的動作。
  */
