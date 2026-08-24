@@ -44,7 +44,9 @@ const el = {
   card: $('questionCard'),
   cardDepth: $('cardDepth'),
   cardCount: $('cardCount'),
+  cardBrief: $('cardBrief'),
   cardQuestion: $('cardQuestion'),
+  cardSource: $('cardSource'),
   cardTopics: $('cardTopics'),
   cardLoved: $('cardLoved'),
   copyBtn: $('copyBtn'),
@@ -338,6 +340,16 @@ function renderCard() {
   el.cardCount.textContent = `${String(state.index + 1).padStart(2, '0')} / ${String(state.deck.length).padStart(2, '0')}`;
   el.cardQuestion.textContent = card.text;
 
+  // 摘要與出處只有時事題有，一般題目兩個都是空字串。
+  el.cardBrief.textContent = card.brief ?? '';
+  el.cardBrief.hidden = !card.brief;
+
+  // 後端只放行 http(s)，這裡再檢查一次 —— 這個值最終會變成使用者點得下去的連結。
+  const source = /^https?:\/\//.test(card.sourceUrl ?? '') ? card.sourceUrl : '';
+
+  el.cardSource.href = source || '#';
+  el.cardSource.hidden = !source;
+
   el.cardTopics.replaceChildren(...card.topics.map((topic) => {
     const item = document.createElement('li');
 
@@ -432,8 +444,16 @@ function flashLabel(node, text, revert) {
   }, LABEL_FLASH_MS);
 }
 
+/*
+ * 時事題複製出去要連摘要與出處一起帶走 ——
+ * 貼到聊天室只有一句「如果房租再漲三成…」，對方會不知道在講哪件事。
+ */
+function shareText(card) {
+  return [card.brief, card.text, card.sourceUrl].filter(Boolean).join('\n');
+}
+
 async function copyQuestion() {
-  const { text } = state.deck[state.index];
+  const text = shareText(state.deck[state.index]);
 
   try {
     await navigator.clipboard.writeText(text);

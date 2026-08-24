@@ -273,6 +273,35 @@ body {
 .card-depth { padding: 4px 10px; color: var(--accent); font-size: 10px; font-weight: 700; letter-spacing: 0.16em; border: 1px solid var(--accent-soft); border-radius: 999px; }
 .card-count { color: var(--ink-soft); font-size: 11px; font-weight: 600; letter-spacing: 0.14em; }
 
+/*
+ * 時事題的背景說明。
+ *
+ * 刻意壓得比題目小、比主題標籤大：它是為了讓人看得懂題目才存在的，
+ * 不該跟題目搶視線。左邊那道細線是在說「這一段跟下面那句話是不同層級的東西」。
+ */
+.card-brief {
+  margin: 22px 0 0;
+  padding-left: 11px;
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.7;
+  border-left: 2px solid var(--accent-soft);
+}
+
+/* 有摘要的時候題目自己的上緣留白收掉，兩段才會讀起來像一組。 */
+.card-brief:not([hidden]) + .card-question { margin-top: 14px; }
+
+.card-source {
+  align-self: flex-start;
+  margin: 0 0 14px;
+  color: var(--ink-soft);
+  font-size: 11px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.card-source:hover { color: var(--accent); }
+
 .card-question {
   display: flex;
   flex: 1;
