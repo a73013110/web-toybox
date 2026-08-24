@@ -127,6 +127,7 @@ body {
   border: 0;
   cursor: pointer;
 }
+.step-back[hidden] { display: none; }
 .step-back svg { width: 15px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.5; }
 .step-back:hover { color: var(--ink); }
 

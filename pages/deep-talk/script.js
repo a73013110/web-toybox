@@ -170,7 +170,13 @@ function renderChoices(container, options, name, onPick) {
     input.value = option.value;
     node.querySelector('strong').textContent = option.value;
     node.querySelector('small').textContent = option.hint;
-    input.addEventListener('change', () => onPick(option.value));
+
+    /*
+     * 聽 click 而不是 change：從下一步倒回來時，原本挑的那一顆已經是選中狀態，
+     * 再點一次不會觸發 change，使用者就卡在這一步 —— 但他的意思明明是「就這個，繼續」。
+     * click 在「換一顆」與「再點同一顆」兩種情況都收得到。
+     */
+    input.addEventListener('click', () => onPick(option.value));
 
     return node;
   });
@@ -540,17 +546,24 @@ async function showTrending() {
 // ========================================
 
 function bind() {
+  // 重點同一顆只是「確認並繼續」，條件其實沒變，不該把暖場狀態一起洗掉。
   renderChoices(el.stageGrid, STAGES, 'stage', (value) => {
-    state.stage = value;
-    state.warm = false; // 條件變了，下一疊要重新暖場。
-    updateStageLabel();
+    if (value !== state.stage) {
+      state.stage = value;
+      state.warm = false; // 條件變了，下一疊要重新暖場。
+      updateStageLabel();
+    }
+
     window.setTimeout(() => showStep(2), 220);
   });
 
   renderChoices(el.depthGrid, DEPTHS, 'depth', (value) => {
-    state.depth = value;
-    state.warm = false;
-    updateStageLabel();
+    if (value !== state.depth) {
+      state.depth = value;
+      state.warm = false;
+      updateStageLabel();
+    }
+
     window.setTimeout(() => showStep(3), 220);
   });
 
