@@ -19,7 +19,8 @@ const DECK_SIZE = 8; // 需與 app-deep-talk.gs 一致。
 const CACHE_SECONDS = 300;
 const DEPTHS = ['破冰', '認識', '深入', '坦白'];
 
-const HEADER = ['id', '題目', '主題標籤', '深度', '關係階段', '上架', '來源', '建立時間', '讚', '跳過'];
+const HEADER = ['id', '題目', '主題標籤', '深度', '關係階段', '上架', '來源', '建立時間', '讚', '跳過',
+                '時事摘要', '出處', '時事日期'];
 
 const COLUMN = { id: 0, text: 1, topics: 2, depth: 3, stages: 4, live: 5, likes: 8, skips: 9 };
 
@@ -225,13 +226,15 @@ describe('Deep Talk：篩選', () => {
   });
 
   test('排除的主題絕不出現', () => {
+    // 池子裡只放兩題，兩題都一定會被抽到 —— 剩下什麼完全由篩選決定。
+    // 把 bad 混進一堆好題目裡，「沒抽到」有可能只是運氣好，斷言就變成擲骰子。
     const rows = [
-      ...Array.from({ length: 12 }, (_, n) => row(`ok${n}`, { topics: '童年與家庭' })),
-      row('bad', { topics: '身體與親密、遺憾' })
+      row('bad', { topics: '身體與親密、遺憾' }),
+      row('ok', { topics: '童年與家庭' })
     ];
-    const result = deck(makeHarness(rows), { exclude: ['身體與親密'] });
+    const ids = deck(makeHarness(rows), { exclude: ['身體與親密'] }).cards.map((card) => card.id);
 
-    assert.ok(result.cards.every((card) => card.id !== 'bad'));
+    assert.deepEqual(ids, ['ok']);
   });
 
   test('想聊的主題優先出牌', () => {
@@ -259,13 +262,14 @@ describe('Deep Talk：篩選', () => {
   });
 
   test('關係階段不符的題目不會出現', () => {
+    // 同上：只放兩題，剩下什麼完全由篩選決定，不留運氣的空間。
     const rows = [
-      ...Array.from({ length: 12 }, (_, n) => row(`ok${n}`, { stages: '曖昧中、交往中' })),
-      row('later', { stages: '在一起很久了' })
+      row('later', { stages: '在一起很久了' }),
+      row('now', { stages: '曖昧中、交往中' })
     ];
-    const result = deck(makeHarness(rows), { stage: '曖昧中' });
+    const ids = deck(makeHarness(rows), { stage: '曖昧中' }).cards.map((card) => card.id);
 
-    assert.ok(result.cards.every((card) => card.id !== 'later'));
+    assert.deepEqual(ids, ['now']);
   });
 
   test('沒有標記階段的題目視為通用', () => {
@@ -696,5 +700,276 @@ describe('Deep Talk：用 AI 生題目', () => {
     const gs = makeHarness([], { fetch: [geminiReply(['題目？'])] });
 
     assert.deepEqual(generate(gs), { ok: false, error: 'invalid_request' });
+  });
+});
+
+describe('Deep Talk：時事題出牌', () => {
+  // 固定時鐘，時事題的年齡才算得準。
+  const NOW = Date.UTC(2026, 7, 24);
+  const DAY_MS = 24 * 60 * 60 * 1000;
+  const daysAgo = (days) => new Date(NOW - days * DAY_MS).toISOString().slice(0, 10);
+
+  /** 一般題目後面接上第 11～13 欄。 */
+  function newsRow(id, overrides = {}) {
+    const {
+      brief = '某件最近被討論的事。',
+      sourceUrl = 'https://example.com/post',
+      days = 1,
+      ...rest
+    } = overrides;
+
+    return [...row(id, { topics: '最近發生的事', ...rest }), brief, sourceUrl, daysAgo(days)];
+  }
+
+  const newsHarness = (rows) => makeHarness(rows, { now: NOW });
+
+  test('摘要與出處會跟著卡片回到前端', () => {
+    const gs = newsHarness([newsRow('n1', { brief: '房租又漲了。', sourceUrl: 'https://example.com/rent' })]);
+    const [card] = deck(gs).cards;
+
+    assert.equal(card.brief, '房租又漲了。');
+    assert.equal(card.sourceUrl, 'https://example.com/rent');
+  });
+
+  test('一般題目的摘要與出處是空的', () => {
+    const gs = newsHarness([row('q1')]);
+    const [card] = deck(gs).cards;
+
+    assert.equal(card.brief, '');
+    assert.equal(card.sourceUrl, '');
+  });
+
+  test('超過 90 天的時事題不再出牌', () => {
+    const gs = newsHarness([newsRow('n1', { days: 91 }), row('q1')]);
+    const ids = deck(gs).cards.map((card) => card.id);
+
+    assert.deepEqual(ids, ['q1'], '過期的時事題應該整個消失');
+  });
+
+  test('90 天內的時事題還在', () => {
+    const gs = newsHarness([newsRow('n1', { days: 89 })]);
+
+    assert.equal(deck(gs).cards.length, 1);
+  });
+
+  test('沒有時事日期的題目永遠不會過期', () => {
+    // 建立時間是 2026-08-23，但那一欄跟出牌無關，只有第 13 欄的時事日期算數。
+    const gs = newsHarness([row('q1')]);
+
+    assert.equal(deck(gs).cards.length, 1);
+  });
+
+  test('出處只收 http(s)，其餘一律當成沒有', () => {
+    const rows = [
+      newsRow('n1', { sourceUrl: 'javascript:alert(1)' }),
+      newsRow('n2', { sourceUrl: 'https://example.com/ok' })
+    ];
+    const cards = deck(newsHarness(rows)).cards;
+    const byId = Object.fromEntries(cards.map((card) => [card.id, card]));
+
+    assert.equal(byId.n1.sourceUrl, '', 'javascript: 會變成前端卡片上一個可以點的連結，必須擋掉');
+    assert.equal(byId.n2.sourceUrl, 'https://example.com/ok');
+  });
+
+  /*
+   * 新鮮度是機率性的偏好，不是硬排序 —— 直接照日期排會讓最新那題每次都第一張。
+   * 所以這裡抽很多次看分佈，而不是看單一結果。
+   */
+  test('越新的時事題越容易被抽到', () => {
+    const rows = [
+      ...Array.from({ length: 10 }, (_, n) => newsRow(`new${n}`, { days: 1 })),
+      ...Array.from({ length: 10 }, (_, n) => newsRow(`old${n}`, { days: 85 }))
+    ];
+    // 同一個 harness 連抽多次，隨機源才會往前走。
+    const gs = newsHarness(rows);
+    let fresh = 0;
+    let stale = 0;
+
+    for (let i = 0; i < 40; i += 1) {
+      for (const card of deck(gs).cards) {
+        if (card.id.startsWith('new')) fresh += 1;
+        else stale += 1;
+      }
+    }
+
+    assert.ok(fresh > stale * 2, `新的應該明顯多於舊的，實際 ${fresh} vs ${stale}`);
+    assert.ok(stale > 0, '舊的只是變少，不該完全抽不到');
+  });
+
+  test('權重相同時退化成一般隨機，不會固定順序', () => {
+    const rows = Array.from({ length: 20 }, (_, n) => row(`q${n}`));
+    const gs = newsHarness(rows);
+    const first = deck(gs).cards.map((card) => card.id).join();
+    const second = deck(gs).cards.map((card) => card.id).join();
+
+    assert.notEqual(first, second);
+  });
+});
+
+describe('Deep Talk：生成時事題', () => {
+  const GEMINI_KEY_PROPERTY = 'DEEP_TALK_GEMINI_API_KEY';
+
+  const candidate = (overrides = {}) => ({
+    text: '如果房租再漲三成，你會先砍掉生活裡的哪一項？',
+    brief: '雙北房租連續第三季上漲。',
+    sourceUrl: 'https://example.com/rent',
+    eventDate: '2026-08-20',
+    depth: '認識',
+    topics: ['金錢觀'],
+    ...overrides
+  });
+
+  const reply = (items) => ({
+    body: { candidates: [{ content: { parts: [{ text: JSON.stringify(items) }] } }] }
+  });
+
+  const rawReply = (text) => ({ body: { candidates: [{ content: { parts: [{ text }] } }] } });
+
+  const makeNewsHarness = (rows, responses) =>
+    makeHarness(rows, {
+      properties: { [GEMINI_KEY_PROPERTY]: 'FAKE_API_KEY' },
+      fetch: responses
+    });
+
+  const generateNews = (gs, payload = {}) =>
+    ask(gs, { action: 'generate-news', key: ADMIN_KEY, ...payload });
+
+  test('同時開搜尋與讀網頁兩個工具', () => {
+    const gs = makeNewsHarness([], [reply([candidate()])]);
+
+    generateNews(gs);
+
+    const request = JSON.parse(gs.fetchCalls[0].body);
+    const tools = JSON.stringify(request.tools);
+
+    assert.match(tools, /googleSearch/, '沒有搜尋就找不到時事');
+    assert.match(tools, /urlContext/, '只靠搜尋摘要碰不到留言區');
+    assert.ok(request.generationConfig.responseSchema, '仍然要結構化輸出');
+  });
+
+  test('寫進試算表時一律待審，來源標成 AI/時事', () => {
+    const gs = makeNewsHarness([], [reply([candidate()])]);
+
+    assert.deepEqual(generateNews(gs), { ok: true, added: 1, skipped: 0, blocked: 0 });
+
+    const [, written] = gs.rows('questions');
+
+    assert.equal(written[COLUMN.live], false, '時事題尤其不能自動上架');
+    assert.equal(written[6], 'AI/時事');
+  });
+
+  test('摘要、出處、時事日期寫在第 11～13 欄', () => {
+    const gs = makeNewsHarness([], [reply([candidate()])]);
+
+    generateNews(gs);
+
+    const [, written] = gs.rows('questions');
+
+    assert.equal(written[10], '雙北房租連續第三季上漲。');
+    assert.equal(written[11], 'https://example.com/rent');
+    assert.equal(new Date(written[12]).toISOString().slice(0, 10), '2026-08-20');
+  });
+
+  test('一律掛上時事標籤，模型給的其他主題接在後面', () => {
+    const gs = makeNewsHarness([], [reply([candidate({ topics: ['金錢觀', '未來規劃'] })])]);
+
+    generateNews(gs);
+
+    const [, written] = gs.rows('questions');
+
+    assert.equal(written[COLUMN.topics], '最近發生的事、金錢觀、未來規劃');
+  });
+
+  test('模型自己加了時事標籤也不會重複', () => {
+    const gs = makeNewsHarness([], [reply([candidate({ topics: ['最近發生的事'] })])]);
+
+    generateNews(gs);
+
+    assert.equal(gs.rows('questions')[1][COLUMN.topics], '最近發生的事');
+  });
+
+  for (const [label, overrides] of [
+    ['沒有摘要', { brief: '' }],
+    ['沒有出處', { sourceUrl: '' }],
+    ['出處不是網址', { sourceUrl: '不確定' }],
+    ['沒有時事日期', { eventDate: '' }],
+    ['時事日期看不懂', { eventDate: '前幾天' }],
+    ['深度不在清單裡', { depth: '超深' }]
+  ]) {
+    test(`${label}的題目直接丟掉`, () => {
+      const gs = makeNewsHarness([], [reply([candidate(overrides)])]);
+
+      assert.deepEqual(generateNews(gs), { ok: true, added: 0, skipped: 1, blocked: 0 });
+      assert.equal(gs.rows('questions').length, 1, '只剩標題列');
+    });
+  }
+
+  /*
+   * 這是整條路徑上最重要的一道檢查：AI 自己找時事，等於讓模型決定什麼東西
+   * 出現在這個網站上，而熱門話題裡永遠混著命案與天災。
+   */
+  test('題材黑名單擋下不適合的時事，而且分開計數', () => {
+    const gs = makeNewsHarness([], [reply([
+      candidate({ text: '你上一次覺得治安變差是什麼時候？', brief: '某地發生一起命案。' }),
+      candidate({ text: '看到空難新聞你會改變出遊計畫嗎？', brief: '本週發生空難。' }),
+      candidate()
+    ])]);
+
+    assert.deepEqual(generateNews(gs), { ok: true, added: 1, skipped: 0, blocked: 2 });
+
+    const written = gs.rows('questions').slice(1);
+
+    assert.equal(written.length, 1);
+    assert.match(written[0][COLUMN.text], /房租/);
+  });
+
+  test('題目沒踩黑名單但摘要踩了，一樣擋掉', () => {
+    const gs = makeNewsHarness([], [reply([
+      candidate({ text: '你多久沒跟家人吃飯了？', brief: '一名死者的家屬出面說明。' })
+    ])]);
+
+    assert.deepEqual(generateNews(gs), { ok: true, added: 0, skipped: 0, blocked: 1 });
+  });
+
+  test('跟既有題目重複的不會再寫一次', () => {
+    const existing = row('q1', { text: '如果房租再漲三成，你會先砍掉生活裡的哪一項？' });
+    const gs = makeNewsHarness([existing], [reply([candidate()])]);
+
+    assert.deepEqual(generateNews(gs), { ok: true, added: 0, skipped: 1, blocked: 0 });
+  });
+
+  /*
+   * 開著搜尋工具時模型有機率在 JSON 前後多吐字。這條路徑一失敗整批題目就沒了，
+   * 所以解析要能從雜訊裡把 JSON 撈出來。
+   */
+  test('JSON 前面多一段說明文字仍然解析得出來', () => {
+    const noisy = `好的，我查到以下幾則：\n${JSON.stringify([candidate()])}\n希望有幫助。`;
+    const gs = makeNewsHarness([], [rawReply(noisy)]);
+
+    assert.deepEqual(generateNews(gs), { ok: true, added: 1, skipped: 0, blocked: 0 });
+  });
+
+  test('完全不是 JSON 就報錯，不會靜靜地寫入垃圾', () => {
+    const gs = makeNewsHarness([], [rawReply('今天沒有查到什麼特別的事')]);
+
+    assert.equal(generateNews(gs).ok, false);
+    assert.equal(gs.rows('questions').length, 1);
+  });
+
+  test('沒帶管理密鑰就不會打 Gemini', () => {
+    const gs = makeNewsHarness([], [reply([candidate()])]);
+
+    assert.equal(ask(gs, { action: 'generate-news' }).ok, false);
+    assert.equal(gs.fetchCalls.length, 0);
+  });
+
+  test('生成後清掉快取，稽核上架的時事題立刻抽得到', () => {
+    const gs = makeNewsHarness([row('q1')], [reply([candidate({ depth: '破冰' })])]);
+
+    deck(gs); // 先讓題庫進快取。
+    generateNews(gs);
+    gs.rows('questions').at(-1)[COLUMN.live] = true;
+
+    assert.equal(deck(gs).cards.length, 2, '舊快取沒清的話只會抽到 1 張');
   });
 });

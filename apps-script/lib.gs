@@ -218,15 +218,23 @@ function requireAdminKey(provided, keyProperty) {
 // 其他
 // ========================================
 
-/** Fisher-Yates 洗牌，回傳新陣列，不動到原本的。 */
-function shuffled(items) {
-  const result = items.slice();
+/*
+ * 帶權重的洗牌：權重高的比較容易排在前面，但不保證一定在前面。
+ *
+ * 用的是 Efraimidis-Spirakis 演算法 —— 每個元素抽一個 [0,1) 隨機數再開 1/w 次方
+ * 當排序鍵，由大到小排。權重 w 的元素排在最前面的機率恰好正比於 w，
+ * 這正是「偏好但不獨佔」要的效果：直接照權重排序會讓最新的那題每次都第一張。
+ *
+ * 權重全部相同時退化成一般的隨機洗牌，所以可以安全地取代 shuffled()。
+ */
+function weightedShuffle(items, weightOf) {
+  return items
+    .map((item) => {
+      const weight = Math.max(weightOf(item), Number.MIN_VALUE);
 
-  for (let i = result.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(Math.random() * (i + 1));
-
-    [result[i], result[j]] = [result[j], result[i]];
-  }
-
-  return result;
+      // Math.random() 可能回傳 0，取 0 的任何次方都是 0，會讓元素永遠墊底。
+      return { item, key: Math.pow(Math.random() || Number.MIN_VALUE, 1 / weight) };
+    })
+    .sort((a, b) => b.key - a.key)
+    .map((entry) => entry.item);
 }
