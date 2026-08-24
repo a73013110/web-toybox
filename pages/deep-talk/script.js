@@ -44,11 +44,17 @@ const el = {
   card: $('questionCard'),
   cardDepth: $('cardDepth'),
   cardCount: $('cardCount'),
-  cardBrief: $('cardBrief'),
   cardQuestion: $('cardQuestion'),
-  cardSource: $('cardSource'),
   cardTopics: $('cardTopics'),
   cardLoved: $('cardLoved'),
+  followupBtn: $('followupBtn'),
+  followupPanel: $('followupPanel'),
+  followupLead: $('followupLead'),
+  followupList: $('followupList'),
+  followupForm: $('followupForm'),
+  followupDirection: $('followupDirection'),
+  followupSubmit: $('followupSubmit'),
+  followupStatus: $('followupStatus'),
   copyBtn: $('copyBtn'),
   copyLabel: $('copyLabel'),
   imageBtn: $('imageBtn'),
@@ -346,16 +352,6 @@ function renderCard() {
   el.cardCount.textContent = `${String(state.index + 1).padStart(2, '0')} / ${String(state.deck.length).padStart(2, '0')}`;
   el.cardQuestion.textContent = card.text;
 
-  // 摘要與出處只有時事題有，一般題目兩個都是空字串。
-  el.cardBrief.textContent = card.brief ?? '';
-  el.cardBrief.hidden = !card.brief;
-
-  // 後端只放行 http(s)，這裡再檢查一次 —— 這個值最終會變成使用者點得下去的連結。
-  const source = /^https?:\/\//.test(card.sourceUrl ?? '') ? card.sourceUrl : '';
-
-  el.cardSource.href = source || '#';
-  el.cardSource.hidden = !source;
-
   el.cardTopics.replaceChildren(...card.topics.map((topic) => {
     const item = document.createElement('li');
 
@@ -374,6 +370,100 @@ function renderCard() {
 
   el.copyLabel.textContent = '複製題目';
   el.imageLabel.textContent = '存成卡片';
+
+  closeFollowups();
+}
+
+// ========================================
+// 追問
+// ========================================
+
+/*
+ * 「聊不下去了？」展開的那一區。
+ *
+ * 一顆按鈕分成兩段：展開時先顯示別人問過的追問 —— 那是讀試算表，不花配額也不用等；
+ * 底下才是輸入框，想要新的再叫 AI。預設路徑不燒配額，是這個設計的重點。
+ */
+
+function closeFollowups() {
+  el.followupPanel.hidden = true;
+  el.followupBtn.setAttribute('aria-expanded', 'false');
+  el.followupList.replaceChildren();
+  el.followupStatus.textContent = '';
+  el.followupDirection.value = '';
+}
+
+function renderFollowups(items, lead) {
+  el.followupLead.textContent = lead;
+  el.followupLead.hidden = items.length === 0;
+  el.followupList.replaceChildren(...items.map((text) => {
+    const item = document.createElement('li');
+
+    item.textContent = text;
+
+    return item;
+  }));
+}
+
+async function toggleFollowups() {
+  if (!el.followupPanel.hidden) {
+    closeFollowups();
+    return;
+  }
+
+  el.followupPanel.hidden = false;
+  el.followupBtn.setAttribute('aria-expanded', 'true');
+  renderFollowups([], '');
+  el.followupStatus.textContent = '看看別人問過什麼…';
+
+  const card = state.deck[state.index];
+
+  try {
+    const result = await submitToAppsScript('deep-talk', {
+      action: 'followup-history',
+      id: card.id
+    });
+    const items = result.followups ?? [];
+
+    renderFollowups(items, '別人問過的：');
+    el.followupStatus.textContent = items.length > 0
+      ? ''
+      : '還沒有人問過這一題。要不要當第一個？';
+  } catch (error) {
+    // 歷史讀不到不算什麼，輸入框還在，照樣可以叫 AI 想。
+    renderFollowups([], '');
+    el.followupStatus.textContent = '';
+  }
+}
+
+async function askFollowups(event) {
+  event.preventDefault();
+
+  if (el.followupSubmit.disabled) return;
+
+  const card = state.deck[state.index];
+  const direction = el.followupDirection.value.trim();
+
+  el.followupSubmit.disabled = true;
+  el.followupStatus.textContent = 'AI 正在想…';
+
+  try {
+    const result = await submitToAppsScript('deep-talk', {
+      action: 'followup',
+      id: card.id,
+      direction
+    });
+
+    renderFollowups(result.followups ?? [], 'AI 想到的：');
+    el.followupStatus.textContent = '';
+  } catch (error) {
+    // 追問只是加分項，失敗就說一聲，不要把人擋在這裡。
+    el.followupStatus.textContent = error?.code === 'rate_limited'
+      ? '現在有點忙，等一下再試。'
+      : 'AI 這次沒想出來，換個方向再試一次。';
+  } finally {
+    el.followupSubmit.disabled = false;
+  }
 }
 
 function vote(kind) {
@@ -450,16 +540,8 @@ function flashLabel(node, text, revert) {
   }, LABEL_FLASH_MS);
 }
 
-/*
- * 時事題複製出去要連摘要與出處一起帶走 ——
- * 貼到聊天室只有一句「如果房租再漲三成…」，對方會不知道在講哪件事。
- */
-function shareText(card) {
-  return [card.brief, card.text, card.sourceUrl].filter(Boolean).join('\n');
-}
-
 async function copyQuestion() {
-  const text = shareText(state.deck[state.index]);
+  const text = state.deck[state.index].text;
 
   try {
     await navigator.clipboard.writeText(text);
@@ -583,6 +665,8 @@ function bind() {
 
   el.likeBtn.addEventListener('click', () => vote('like'));
   el.skipBtn.addEventListener('click', () => vote('skip'));
+  el.followupBtn.addEventListener('click', toggleFollowups);
+  el.followupForm.addEventListener('submit', askFollowups);
   el.copyBtn.addEventListener('click', copyQuestion);
   el.imageBtn.addEventListener('click', saveImage);
 

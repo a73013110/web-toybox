@@ -29,23 +29,7 @@ const DEEPTALK_RANK_PRIOR = 5;
 const DEEPTALK_MIN_VOTES_TO_RETIRE = 10;
 const DEEPTALK_MAX_SKIP_RATIO = 0.6;
 
-/*
- * 時事題。
- *
- * 就是一般題目多帶三個欄位（摘要、出處、時事日期），主題標籤固定含「最近發生的事」，
- * 因此篩選、投票、熱門榜全部沿用既有機制，不需要另一套流程。
- *
- * 只有兩件事是時事題專屬的：太舊就不再出牌，以及越新的越容易被抽到。
- * 半衰期 30 天代表一個月前的時事被抽到的機率剩一半，三個月前剩八分之一 ——
- * 在 90 天上限生效前就已經幾乎抽不到了，兩道機制是連續的而不是突然斷掉。
- */
-const DEEPTALK_TOPIC_NEWS = '最近發生的事';
-const DEEPTALK_NEWS_MAX_AGE_DAYS = 90;
-const DEEPTALK_NEWS_HALFLIFE_DAYS = 30;
-const DEEPTALK_DAY_MS = 24 * 60 * 60 * 1000;
-
 // 試算表欄位順序，1 起算。調整欄位時只需要改這裡。
-// 第 11 欄之後是時事題專用，一般題目留空即可，舊資料不必補。
 const DEEPTALK_COLUMN = {
   id: 1,
   text: 2,
@@ -56,10 +40,7 @@ const DEEPTALK_COLUMN = {
   source: 7,
   createdAt: 8,
   likes: 9,
-  skips: 10,
-  brief: 11,
-  sourceUrl: 12,
-  eventDate: 13
+  skips: 10
 };
 
 /** 由淺到深。順序決定發牌的爬坡曲線，也決定深度上限涵蓋哪些層級。 */
@@ -107,10 +88,12 @@ function handleDeepTalk(payload) {
       return deepTalkTrending(payload);
     case 'flush':
       return deepTalkFlush(payload);
+    case 'followup':
+      return deepTalkFollowup(payload); // app-deep-talk-ai.gs
+    case 'followup-history':
+      return deepTalkFollowupHistory(payload); // app-deep-talk-ai.gs
     case 'generate':
       return deepTalkGenerateAction(payload); // app-deep-talk-ai.gs
-    case 'generate-news':
-      return deepTalkGenerateNewsAction(payload); // app-deep-talk-ai.gs
     default:
       throw requestError('unknown_action');
   }
@@ -162,38 +145,8 @@ function deepTalkParseRow(row) {
     depth: normalizeText(cell(DEEPTALK_COLUMN.depth), 10),
     stages: deepTalkSplitTags(cell(DEEPTALK_COLUMN.stages)),
     likes: Math.max(0, Math.trunc(Number(cell(DEEPTALK_COLUMN.likes))) || 0),
-    skips: Math.max(0, Math.trunc(Number(cell(DEEPTALK_COLUMN.skips))) || 0),
-    // 時事題專用，一般題目是空的。
-    brief: normalizeText(cell(DEEPTALK_COLUMN.brief), 120),
-    sourceUrl: deepTalkSafeUrl(cell(DEEPTALK_COLUMN.sourceUrl)),
-    eventAt: deepTalkParseDate(cell(DEEPTALK_COLUMN.eventDate))
+    skips: Math.max(0, Math.trunc(Number(cell(DEEPTALK_COLUMN.skips))) || 0)
   };
-}
-
-/*
- * 時事日期轉成毫秒時間戳。
- *
- * 存成數字而不是 Date，因為整份題庫會 JSON 化進快取，Date 過一輪會變成字串，
- * 兩條路徑拿到的型別就不一樣了。數字進出都是數字。
- */
-function deepTalkParseDate(value) {
-  if (!value) return null;
-
-  const time = value instanceof Date ? value.getTime() : new Date(String(value).trim()).getTime();
-
-  return Number.isFinite(time) ? time : null;
-}
-
-/*
- * 出處連結。只收 http(s)，其餘一律當成沒有。
- *
- * 這個值會變成前端卡片上一個可以點的連結，而題目是 AI 生的 ——
- * 擋掉 javascript: 這類 scheme 是必要的，不能假設模型只會吐出乾淨的網址。
- */
-function deepTalkSafeUrl(value) {
-  const url = normalizeText(value, 500);
-
-  return /^https?:\/\/\S+$/.test(url) ? url : '';
 }
 
 /** 「上架」欄可能是核取方塊（布林）或手打的文字，兩種都接受。 */
@@ -220,37 +173,6 @@ function deepTalkIsRetired(question) {
   return votes >= DEEPTALK_MIN_VOTES_TO_RETIRE && question.skips / votes > DEEPTALK_MAX_SKIP_RATIO;
 }
 
-/** 題目對應的時事過了多少天。沒有時事日期的一般題目回傳 null。 */
-function deepTalkAgeInDays(question, nowMs) {
-  if (!question.eventAt) return null;
-
-  return (nowMs - question.eventAt) / DEEPTALK_DAY_MS;
-}
-
-/*
- * 時事題放太久就不再出牌 —— 半年前的事沒有帶入感，問了只會冷場。
- * 一般題目沒有時事日期，永遠不會被這條淘汰。
- */
-function deepTalkIsStale(question, nowMs) {
-  const age = deepTalkAgeInDays(question, nowMs);
-
-  return age !== null && age > DEEPTALK_NEWS_MAX_AGE_DAYS;
-}
-
-/*
- * 抽牌權重：越新的時事題越容易被抽到。
- *
- * 一般題目一律 1，跟過去的行為完全一樣。
- * 未來日期（模型把日期寫錯，或是預告性的活動）也給 1，不給它超過新題目的優勢。
- */
-function deepTalkFreshness(question, nowMs) {
-  const age = deepTalkAgeInDays(question, nowMs);
-
-  if (age === null || age <= 0) return 1;
-
-  return Math.pow(2, -age / DEEPTALK_NEWS_HALFLIFE_DAYS);
-}
-
 // ========================================
 // 發牌
 // ========================================
@@ -268,18 +190,15 @@ function deepTalkDeck(payload) {
   const excludeSet = deepTalkToSet(normalizeTextList(payload.exclude, 20, 20));
   const seenSet = deepTalkToSet(normalizeTextList(payload.seen, 20, 300));
 
-  const nowMs = Date.now();
-
   const pool = deepTalkQuestions().filter((question) =>
     !seenSet[question.id] &&
     !deepTalkIsRetired(question) &&
-    !deepTalkIsStale(question, nowMs) &&
     // 沒有標記適用階段的題目視為通用。
     (!stage || question.stages.length === 0 || question.stages.indexOf(stage) >= 0) &&
     !question.topics.some((topic) => excludeSet[topic])
   );
 
-  const deck = deepTalkBuildDeck(pool, plan, preferSet, nowMs);
+  const deck = deepTalkBuildDeck(pool, plan, preferSet);
 
   return {
     cards: deck.map((question) => ({
@@ -288,20 +207,16 @@ function deepTalkDeck(payload) {
       topics: question.topics,
       depth: question.depth,
       likes: question.likes,
-      skips: question.skips,
-      // 時事題才有；一般題目是空字串，前端據此決定要不要畫摘要那一區。
-      brief: question.brief,
-      sourceUrl: question.sourceUrl
+      skips: question.skips
     })),
     // 讓前端知道還抽不抽得出下一疊。
     remaining: pool.length - deck.length
   };
 }
 
-function deepTalkBuildDeck(pool, plan, preferSet, nowMs) {
+function deepTalkBuildDeck(pool, plan, preferSet) {
   const used = {};
   const deck = [];
-  const freshness = (question) => deepTalkFreshness(question, nowMs);
 
   const take = (depth, count) => {
     if (count <= 0) return;
@@ -310,9 +225,8 @@ function deepTalkBuildDeck(pool, plan, preferSet, nowMs) {
     const preferred = (question) => question.topics.some((topic) => preferSet[topic]);
 
     // 想聊的主題排在前面，其餘的接在後面 —— 主題不夠出牌時仍然能湊滿一疊。
-    // 每一組內部按新鮮度加權洗牌，越新的時事越容易排前面；一般題目權重都是 1，等同隨機。
-    const ordered = weightedShuffle(layer.filter(preferred), freshness)
-      .concat(weightedShuffle(layer.filter((question) => !preferred(question)), freshness));
+    const ordered = shuffled(layer.filter(preferred))
+      .concat(shuffled(layer.filter((question) => !preferred(question))));
 
     for (const question of ordered.slice(0, count)) {
       used[question.id] = true;
@@ -484,6 +398,7 @@ function deepTalkClamp(value, min, max, fallback) {
 function deepTalkFlush(payload) {
   requireAdminKey(payload.key, DEEPTALK_ADMIN_KEY_PROPERTY);
   clearCachedJson(DEEPTALK_CACHE_KEY);
+  clearCachedJson(DEEPTALK_FOLLOWUP_CACHE_KEY); // 在試算表上下架某一則追問時也要立刻生效。
 
   return { flushed: true };
 }

@@ -119,7 +119,7 @@ try {
 
 **所有作品共用一個 Apps Script 專案與一組部署網址**，靠請求中的 `app` 欄位分流。新增作品不需要再開新專案、也不需要再記一組網址。
 
-後端也負責保管 API 金鑰。Deep Talk 用它呼叫 Gemini 生成新題目 —— 金鑰只存在 Apps Script 的指令碼屬性，不會出現在前端。
+後端也負責保管 API 金鑰。Deep Talk 用它呼叫 Gemini 生成新題目，以及在使用者按下按鈕時生幾個追問 —— 金鑰只存在 Apps Script 的指令碼屬性，不會出現在前端。
 
 部署步驟、日常維護、新增作品要改哪裡、除錯方式與已知限制（不支援串流、冷啟動、配額、無法辨識用戶端 IP）見 [apps-script/README.md](./apps-script/README.md)。
 

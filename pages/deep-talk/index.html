@@ -103,14 +103,7 @@
               <span class="card-count" id="cardCount"></span>
             </header>
 
-            <!-- 時事題才有：先說這件事是什麼，沒跟到的人才答得出來。 -->
-            <p class="card-brief" id="cardBrief" hidden></p>
-
             <p class="card-question" id="cardQuestion"></p>
-
-            <a class="card-source" id="cardSource" hidden target="_blank" rel="noopener noreferrer">
-              看這則的出處
-            </a>
 
             <ul class="card-topics" id="cardTopics"></ul>
             <p class="card-loved" id="cardLoved" hidden></p>
@@ -124,6 +117,30 @@
                 <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m3 16 5-5 4 4 3-3 6 6"/></svg>
                 <span id="imageLabel">存成卡片</span>
               </button>
+              <button class="chip-btn" id="followupBtn" type="button" aria-expanded="false" aria-controls="followupPanel">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l.9-5.4A8 8 0 1 1 21 12z"/></svg>
+                <span>聊不下去了？</span>
+              </button>
+            </div>
+
+            <!--
+              追問區。展開後先顯示別人問過什麼（零延遲），想要新的才會叫 AI。
+              整區只在按下按鈕後才存在，卡片本身的版面完全不受影響。
+            -->
+            <div class="followup" id="followupPanel" hidden>
+              <p class="followup-lead" id="followupLead">別人問過的：</p>
+              <ul class="followup-list" id="followupList"></ul>
+
+              <form class="followup-ask" id="followupForm">
+                <label class="sr-only" for="followupDirection">想往哪個方向追問</label>
+                <input class="input followup-input" id="followupDirection" type="text"
+                       maxlength="40" autocomplete="off" placeholder="想往哪個方向追問？可留空">
+                <button class="btn btn-link followup-submit" id="followupSubmit" type="submit">
+                  讓 AI 想幾個
+                </button>
+              </form>
+
+              <p class="followup-status" id="followupStatus" role="status"></p>
             </div>
           </article>
         </div>

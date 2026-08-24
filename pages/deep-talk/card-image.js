@@ -21,22 +21,6 @@ const SANS = 'Inter, "PingFang TC", "Microsoft JhengHei", sans-serif';
 // 這些符號不該出現在一行的開頭。
 const NO_LINE_START = '。、，．,.!?！？」』）〉》”’:：;；';
 
-// 時事題的背景說明。壓得比題目小，它是為了讓人看得懂題目才存在的。
-const BRIEF_SIZE = 26;
-const BRIEF_MAX_LINES = 3;
-const BRIEF_GAP = 46;
-
-/** 從出處網址取出網域，例如 https://www.dcard.tw/f/… → dcard.tw */
-function sourceHost(url) {
-  if (!/^https?:\/\//.test(url ?? '')) return '';
-
-  try {
-    return new URL(url).hostname.replace(/^www\./, '');
-  } catch (error) {
-    return '';
-  }
-}
-
 /*
  * 逐字斷行。中文沒有詞界，量到超過寬度就換行即可；
  * 唯一要處理的是不能讓標點掉到下一行的開頭。
@@ -161,51 +145,17 @@ export async function renderQuestionCard(card) {
   ctx.stroke();
 
   const maxWidth = WIDTH - MARGIN * 2;
-  const brief = (card.brief ?? '').trim();
-
-  // 摘要先量，因為它會吃掉題目可用的行數。
-  ctx.font = `400 ${BRIEF_SIZE}px ${SANS}`;
-
-  const briefLines = brief ? wrap(ctx, brief, maxWidth).slice(0, BRIEF_MAX_LINES) : [];
-  const briefLineHeight = Math.round(BRIEF_SIZE * 1.7);
-  const briefBlock = briefLines.length > 0
-    ? briefLines.length * briefLineHeight + BRIEF_GAP
-    : 0;
-
-  const { size, lines } = fitQuestion(ctx, card.text, maxWidth, briefLines.length > 0 ? 6 : 8);
+  const { size, lines } = fitQuestion(ctx, card.text, maxWidth, 8);
   const lineHeight = Math.round(size * 1.85);
-
-  // 摘要與題目視為同一塊，整塊置中，題目才不會被摘要推得偏上。
-  let y = (HEIGHT - (briefBlock + lines.length * lineHeight)) / 2 + size * 0.34;
-
-  if (briefLines.length > 0) {
-    ctx.fillStyle = INK_SOFT;
-    ctx.font = `400 ${BRIEF_SIZE}px ${SANS}`;
-
-    briefLines.forEach((line, index) => {
-      ctx.fillText(line, WIDTH / 2, y + index * briefLineHeight);
-    });
-
-    y += briefBlock;
-  }
+  const y = (HEIGHT - lines.length * lineHeight) / 2 + size * 0.34;
 
   ctx.fillStyle = INK;
-  // 上面畫摘要時換過字型，這裡要換回來 —— fitQuestion 設定的字型已經不在了。
+  // fitQuestion 量完之後字型設定已經不在了，這裡要重新指定。
   ctx.font = `500 ${size}px ${SERIF}`;
 
   lines.forEach((line, index) => {
     ctx.fillText(line, WIDTH / 2, y + index * lineHeight);
   });
-
-  // 圖片裡放完整網址既點不了又佔版面，放網域就夠證明這件事有出處。
-  // 完整網址在「複製題目」那條路徑上，貼到聊天室是點得到的。
-  const host = sourceHost(card.sourceUrl);
-
-  if (host) {
-    ctx.fillStyle = INK_SOFT;
-    ctx.font = `400 20px ${SANS}`;
-    ctx.fillText(host, WIDTH / 2, HEIGHT - 222);
-  }
 
   const labels = [card.depth, ...(card.topics ?? [])].filter(Boolean);
 
