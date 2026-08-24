@@ -10,7 +10,6 @@ const ambientDots = document.getElementById('ambientDots');
 const ambientShapes = document.getElementById('ambientShapes');
 const card = document.getElementById('card');
 const stage = document.querySelector('.stage');
-const backLink = document.querySelector('.back-link');
 const progressBar = document.getElementById('progressBar');
 const stepLabel = document.getElementById('stepLabel');
 const previousBtn = document.getElementById('previousBtn');
@@ -173,8 +172,9 @@ if (state.inviteeName) {
   applyInviteeName(state.inviteeName);
 } else {
   nameGate.hidden = false;
-  stage.inert = true; // 輸入稱呼前，暫時禁止操作後方的邀請卡。
-  backLink.inert = true;
+  // 輸入稱呼前，暫時禁止操作後方的邀請卡。左上角的「作品目錄」不在此列 ——
+  // 那是這道關卡唯一的退路，連它都關掉的話，不想填名字的人就只能按上一頁離開。
+  stage.inert = true;
   document.body.classList.add('name-gate-open');
   window.setTimeout(() => inviteeNameInput.focus(), 0);
 }
@@ -192,7 +192,6 @@ nameForm.addEventListener('submit', (event) => {
   nameError.textContent = '';
   nameGate.hidden = true;
   stage.inert = false;
-  backLink.inert = false;
   document.body.classList.remove('name-gate-open');
   focusScene(document.getElementById('scene1'));
 });

@@ -44,6 +44,12 @@ body {
 .name-panel .field-error { margin-bottom: 7px; text-align: left; }
 .name-gate-open { overflow: hidden; }
 
+/*
+ * 名字關卡是整片遮罩（z-index 10），會把固定在左上角的「作品目錄」蓋掉。
+ * 這道關卡在整個體驗的最前面，被擋住等於一進來就沒有退路，所以讓連結浮在遮罩之上。
+ */
+.back-link { z-index: 11; }
+
 .stage { position: relative; z-index: 2; width: min(92vw, 420px); margin: auto; }
 .card { position: relative; min-height: 510px; padding: 44px 34px 36px; overflow: hidden; text-align: center; background: var(--surface); border: 1px solid rgba(20, 20, 20, 0.06); border-radius: var(--radius); box-shadow: 0 1px 1px rgba(0, 0, 0, 0.02), 0 30px 60px -12px rgba(20, 20, 20, 0.16), inset 0 0 0 1px rgba(255, 255, 255, 0.5); backdrop-filter: blur(26px) saturate(160%); -webkit-backdrop-filter: blur(26px) saturate(160%); }
 .card::before { position: absolute; top: 0; right: 0; left: 0; height: 1px; background: linear-gradient(90deg, transparent, var(--gold-soft), transparent); content: ""; }
