@@ -1,0 +1,36 @@
+/*
+ * 設計 token：全站唯一的色票、字型與版面尺寸來源。
+ * 新增作品時請沿用這裡的變數，不要在作品目錄重新宣告顏色。
+ */
+:root {
+  /* 墨色 —— 文字與線條 */
+  --ink: #141414;
+  --ink-soft: #74716c;
+  --line: rgba(20, 20, 20, 0.1);
+  --danger: #8c2d2d;
+
+  /* 紙面 —— 背景與卡片 */
+  --paper: #f7f5f1;
+  --paper-deep: #eeece7;
+  --surface: rgba(255, 255, 255, 0.68);
+
+  /* 金 —— 預設色票 */
+  --gold: #a8874f;
+  --gold-soft: rgba(168, 135, 79, 0.35);
+
+  /*
+   * 強調色的「角色」。共用元件一律用這三個，不直接用 --gold，
+   * 作品只要在自己的 style.css 覆寫這三行就能換掉整頁調性。
+   */
+  --accent: var(--gold);
+  --accent-soft: var(--gold-soft);
+  --accent-faint: rgba(168, 135, 79, 0.12);
+
+  /* 字型 */
+  --font-sans: Inter, -apple-system, BlinkMacSystemFont, "PingFang TC", sans-serif;
+  --font-serif: "Cormorant Garamond", "Times New Roman", serif;
+
+  /* 版面 */
+  --radius: 20px;
+  --gutter: clamp(22px, 6vw, 88px);
+}

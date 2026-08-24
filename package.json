@@ -3,10 +3,21 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "開發工具設定。網站本體維持零建置，部署到 GitHub Pages 完全不需要這個檔案。",
+  "description": "Angular 22 製作的互動網頁作品集，部署於 GitHub Pages。後端為 Google Apps Script。",
   "license": "MIT",
+  "packageManager": "npm@11.6.1",
   "scripts": {
-    "test": "node --test \"apps-script/test/*.test.js\"",
+    "ng": "ng",
+    "start": "ng serve",
+    "build": "ng build",
+    "watch": "ng build --watch --configuration development",
+    "test": "npm run test:frontend && npm run test:backend",
+    "test:frontend": "ng test",
+    "test:backend": "node --test \"apps-script/test/*.test.js\"",
+    "lint": "ng lint",
+    "lint:fix": "ng lint --fix",
+    "format": "prettier --write \"**/*.{ts,mts,mjs,html,css,json,md}\" --cache",
+    "format:check": "prettier --check \"**/*.{ts,mts,mjs,html,css,json,md}\" --cache",
     "gs:push": "cd apps-script && clasp push",
     "gs:deploy": "node scripts/gs-deploy.mjs",
     "gs:status": "cd apps-script && clasp status",
@@ -16,7 +27,31 @@
     "gs:open": "cd apps-script && clasp open-script",
     "gs:web": "cd apps-script && clasp open-web-app"
   },
+  "dependencies": {
+    "@angular/common": "^22.1.0",
+    "@angular/compiler": "^22.1.0",
+    "@angular/core": "^22.1.0",
+    "@angular/forms": "^22.1.0",
+    "@angular/platform-browser": "^22.1.0",
+    "@angular/platform-server": "^22.1.0",
+    "@angular/router": "^22.1.0",
+    "@angular/ssr": "^22.1.3",
+    "rxjs": "~7.8.0",
+    "tslib": "^2.3.0"
+  },
   "devDependencies": {
-    "@google/clasp": "^3.4.0"
+    "@angular/build": "^22.1.3",
+    "@angular/cli": "^22.1.3",
+    "@angular/compiler-cli": "^22.1.0",
+    "@eslint/js": "^10.0.1",
+    "@google/clasp": "^3.4.0",
+    "@types/node": "^24.10.1",
+    "angular-eslint": "22.1.0",
+    "eslint": "^10.6.0",
+    "jsdom": "^28.0.0",
+    "prettier": "^3.8.1",
+    "typescript": "~6.0.2",
+    "typescript-eslint": "8.62.1",
+    "vitest": "^4.0.8"
   }
 }

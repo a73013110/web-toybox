@@ -1,0 +1,7 @@
+/*
+ * 全域樣式入口。載入順序不可調換：
+ * tokens 定義變數 → base 使用變數做重設 → ui 使用兩者做共用元件。
+ */
+@import './styles/tokens.css';
+@import './styles/base.css';
+@import './styles/ui.css';

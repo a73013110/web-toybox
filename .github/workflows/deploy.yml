@@ -1,0 +1,64 @@
+# 部署 Angular build 產物到 GitHub Pages。
+#
+# ⚠️ 首次啟用前，需要在 repo 的 Settings → Pages 把 Source 從 branch 改成
+#    「GitHub Actions」，否則這個 workflow 跑完也不會生效。
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 同時只跑一個部署，但不中斷進行中的（避免部署到一半被取消）。
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run lint
+
+      # Apps Script 的回歸測試。前端測試在階段三（API transport）之後加入。
+      - run: npm run test:backend
+
+      # production 設定會帶上 baseHref /web-toybox/ 並 prerender 所有靜態路由。
+      - run: npm run build
+
+      # 確認每個公開路徑都有實體 index.html——漏掉的話該頁重新整理會 404。
+      - name: Verify prerendered pages
+        run: |
+          for page in index.html pages/invitation-card/index.html pages/deep-talk/index.html; do
+            test -f "dist/web-toybox/browser/$page" || { echo "缺少 prerender 產物：$page"; exit 1; }
+          done
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist/web-toybox/browser
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,43 @@
+/* 階段一佔位樣式。搬入真正的頁面時整份取代。 */
+.scaffold {
+  display: grid;
+  place-content: center;
+  gap: 12px;
+  min-height: 100vh;
+  padding: var(--gutter);
+  background: var(--paper);
+  color: var(--ink);
+  text-align: center;
+}
+
+.scaffold-tag {
+  margin: 0;
+  color: var(--accent);
+  font-size: 0.75rem;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+}
+
+.scaffold h1 {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: clamp(2rem, 6vw, 3.25rem);
+  font-weight: 600;
+}
+
+.scaffold-note {
+  margin: 0;
+  color: var(--ink-soft);
+}
+
+.scaffold-links {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+  margin-top: 12px;
+}
+
+.scaffold-links a {
+  color: var(--ink);
+  text-underline-offset: 4px;
+}
