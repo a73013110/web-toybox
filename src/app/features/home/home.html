@@ -1,9 +1,41 @@
-<main class="scaffold">
-  <p class="scaffold-tag">階段一佔位</p>
-  <h1>Web Toybox</h1>
-  <p class="scaffold-note">Angular 骨架已就緒，首頁內容於階段二搬入。</p>
-  <nav class="scaffold-links">
-    <a routerLink="/pages/invitation-card">Invitation Card</a>
-    <a routerLink="/pages/deep-talk">Deep Talk</a>
-  </nav>
+<!-- 背景方格。原本是 body::before，改成實體元素才能待在元件的樣式封裝內。 -->
+<div class="backdrop-grid" aria-hidden="true"></div>
+
+<header class="site-header">
+  <a class="brand" routerLink="/" aria-label="Web Toybox 首頁">WEB TOYBOX</a>
+  <span class="edition">2026 / 01</span>
+</header>
+
+<main>
+  <section class="hero" aria-labelledby="page-title">
+    <p class="hero-index" aria-hidden="true">01</p>
+    <div class="hero-copy">
+      <p class="eyebrow">A SMALL COLLECTION OF WEB EXPERIMENTS</p>
+      <h1 id="page-title">把靈感，做成<br />可以玩的網頁。</h1>
+      <p class="intro">
+        這裡收藏不用安裝、打開就能玩的瀏覽器小作品。每一件都用原生 HTML、CSS 與 JavaScript 製作。
+      </p>
+    </div>
+  </section>
+
+  <section class="collection" aria-labelledby="collection-title">
+    <div class="section-heading">
+      <h2 id="collection-title">作品目錄</h2>
+      <p>{{ projects.length }} 件作品</p>
+    </div>
+
+    <!--
+      卡片在 build 期就 prerender 進 HTML，因此不再需要原本的 <noscript> 備援。
+    -->
+    <div class="project-list">
+      @for (project of projects; track project.slug; let i = $index) {
+        <app-project-card [project]="project" [index]="i + 1" />
+      }
+    </div>
+  </section>
 </main>
+
+<footer class="site-footer">
+  <span>WEB TOYBOX</span>
+  <span>BUILT WITH HTML · CSS · JS</span>
+</footer>

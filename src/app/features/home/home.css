@@ -1,43 +1,215 @@
-/* 階段一佔位樣式。搬入真正的頁面時整份取代。 */
-.scaffold {
-  display: grid;
-  place-content: center;
-  gap: 12px;
-  min-height: 100vh;
-  padding: var(--gutter);
-  background: var(--paper);
+/*
+ * 首頁樣式。原本寫在 body 上的規則改掛 :host——元件樣式封裝下 body 選擇器不會生效。
+ */
+:host {
+  display: block;
+  min-height: 100svh;
   color: var(--ink);
-  text-align: center;
+  font-family: var(--font-sans);
+  background:
+    radial-gradient(1000px 700px at 10% 4%, #ffffff 0%, transparent 58%),
+    radial-gradient(900px 700px at 95% 16%, #fbf8f2 0%, transparent 54%),
+    linear-gradient(180deg, var(--paper), var(--paper-deep));
 }
 
-.scaffold-tag {
-  margin: 0;
-  color: var(--accent);
-  font-size: 0.75rem;
-  letter-spacing: 0.24em;
+.backdrop-grid {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background-image:
+    linear-gradient(rgba(20, 20, 20, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(20, 20, 20, 0.025) 1px, transparent 1px);
+  background-size: 44px 44px;
+  pointer-events: none;
+}
+
+/* 內容一律疊在背景方格之上。 */
+.site-header,
+main,
+.site-footer {
+  position: relative;
+  z-index: 1;
+}
+
+.site-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 76px;
+  padding: 0 var(--gutter);
+  border-bottom: 1px solid var(--line);
+}
+
+.brand {
+  color: var(--ink);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-decoration: none;
+}
+
+.edition,
+.site-footer {
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
 }
 
-.scaffold h1 {
-  margin: 0;
-  font-family: var(--font-serif);
-  font-size: clamp(2rem, 6vw, 3.25rem);
-  font-weight: 600;
-}
-
-.scaffold-note {
-  margin: 0;
+.edition {
   color: var(--ink-soft);
 }
 
-.scaffold-links {
-  display: flex;
-  gap: 20px;
-  justify-content: center;
-  margin-top: 12px;
+.hero {
+  position: relative;
+  /* 隔離出自己的堆疊環境，讓巨大的裝飾數字留在 hero 文案後方。 */
+  isolation: isolate;
+  display: grid;
+  min-height: min(690px, calc(100svh - 76px));
+  padding: clamp(90px, 14vw, 170px) var(--gutter) 80px;
+  overflow: hidden;
 }
 
-.scaffold-links a {
-  color: var(--ink);
-  text-underline-offset: 4px;
+.hero::after {
+  position: absolute;
+  right: var(--gutter);
+  bottom: 78px;
+  width: clamp(80px, 10vw, 140px);
+  aspect-ratio: 1;
+  border: 1px solid var(--gold-soft);
+  transform: rotate(45deg);
+  content: "";
+}
+
+.hero-index {
+  position: absolute;
+  top: 4%;
+  right: 6%;
+  z-index: 0;
+  margin: 0;
+  color: rgba(168, 135, 79, 0.07);
+  font-family: var(--font-serif);
+  font-size: clamp(17rem, 36vw, 38rem);
+  font-weight: 500;
+  line-height: 0.78;
+  letter-spacing: -0.08em;
+}
+
+.hero-copy {
+  position: relative;
+  z-index: 1;
+  width: min(850px, 100%);
+  align-self: center;
+}
+
+.hero .eyebrow {
+  margin-bottom: 24px; /* 首頁 hero 需要比作品頁更寬的呼吸空間。 */
+}
+
+h1 {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: clamp(4rem, 8.6vw, 8rem);
+  font-weight: 600;
+  line-height: 0.93;
+  letter-spacing: -0.035em;
+}
+
+.intro {
+  width: min(500px, 100%);
+  margin: 42px 0 0;
+  color: var(--ink-soft);
+  font-size: 0.95rem;
+  line-height: 1.9;
+}
+
+.collection {
+  padding: 90px var(--gutter) 120px;
+  border-top: 1px solid var(--line);
+}
+
+.section-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  max-width: 1120px;
+  margin: 0 auto 28px;
+}
+
+.section-heading h2,
+.section-heading p {
+  margin: 0;
+}
+
+.section-heading h2 {
+  font-family: var(--font-serif);
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 600;
+}
+
+.section-heading p {
+  color: var(--ink-soft);
+  font-size: 0.75rem;
+}
+
+.project-list {
+  display: grid;
+  gap: 22px;
+  max-width: 1120px;
+  margin: 0 auto;
+}
+
+.site-footer {
+  display: flex;
+  justify-content: space-between;
+  padding: 28px var(--gutter);
+  color: var(--ink-soft);
+  border-top: 1px solid var(--line);
+}
+
+@media (max-width: 760px) {
+  .hero {
+    min-height: 620px;
+  }
+
+  .hero::after {
+    right: 8%;
+    bottom: 54px;
+    width: 70px;
+  }
+}
+
+@media (max-width: 480px) {
+  .edition {
+    display: none;
+  }
+
+  .hero {
+    min-height: 620px;
+    padding-top: 110px;
+  }
+
+  h1 {
+    font-size: clamp(3.6rem, 17vw, 5rem);
+  }
+
+  .hero-index {
+    top: 6%;
+    right: -5%;
+    font-size: 72vw;
+  }
+
+  .hero::after {
+    display: none;
+  }
+
+  .collection {
+    padding-top: 64px;
+    padding-bottom: 78px;
+  }
+
+  .site-footer {
+    gap: 12px;
+    flex-direction: column;
+  }
 }

@@ -1,0 +1,121 @@
+:host {
+  display: block;
+}
+
+.project-card {
+  display: grid;
+  grid-template-columns: 90px minmax(280px, 1fr) 180px;
+  gap: clamp(28px, 5vw, 70px);
+  align-items: stretch;
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid rgba(20, 20, 20, 0.06);
+  border-radius: 18px;
+  box-shadow: 0 24px 55px -18px rgba(20, 20, 20, 0.15), inset 0 0 0 1px rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(20px);
+}
+
+.project-number {
+  padding: 36px 0 36px 34px;
+  color: var(--gold);
+  font-family: var(--font-serif);
+  font-size: 4.8rem;
+  font-weight: 500;
+  line-height: 0.8;
+}
+
+.project-details {
+  padding: 36px 0 40px;
+}
+
+.project-type {
+  margin: 0 0 14px;
+  color: var(--gold);
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.project-details h3 {
+  margin: 0 0 16px;
+  font-family: var(--font-serif);
+  font-size: clamp(2.4rem, 5vw, 4rem);
+  font-weight: 600;
+  line-height: 1;
+}
+
+.project-summary {
+  max-width: 560px;
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+  line-height: 1.75;
+}
+
+.project-link {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  justify-content: center;
+  padding: 30px;
+  color: #ffffff;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-decoration: none;
+  background: var(--ink);
+  transition: background 250ms ease;
+}
+
+.project-link:hover {
+  background: var(--gold);
+}
+
+.project-link svg {
+  width: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.5;
+  transition: transform 200ms ease;
+}
+
+.project-link:hover svg {
+  transform: translateX(4px);
+}
+
+@media (max-width: 760px) {
+  .project-card {
+    grid-template-columns: 76px 1fr;
+  }
+
+  .project-number {
+    padding-left: 24px;
+  }
+
+  .project-link {
+    grid-column: 1 / -1;
+    min-height: 84px;
+  }
+}
+
+@media (max-width: 480px) {
+  .project-card {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .project-number {
+    padding-bottom: 4px;
+  }
+
+  .project-details {
+    padding: 24px;
+  }
+
+  .project-link {
+    grid-column: auto;
+  }
+}
