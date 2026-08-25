@@ -60,9 +60,9 @@
   padding: 72px 20px 24px;
 }
 
-.screen { display: none; width: 100%; }
-.screen.is-active { display: block; animation: rise 420ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
-.screen-shuffle.is-active { display: flex; flex-direction: column; align-items: center; gap: 26px; }
+/* @switch 一次只渲染一個畫面，元素是新建立的，進場動畫自己就會播。 */
+.screen { display: block; width: 100%; animation: rise 420ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.screen-shuffle { display: flex; flex-direction: column; align-items: center; gap: 26px; }
 
 @keyframes rise {
   from { opacity: 0; transform: translateY(14px); }

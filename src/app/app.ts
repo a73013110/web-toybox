@@ -4,13 +4,11 @@ import { RouterOutlet } from '@angular/router';
 /*
  * 根元件刻意只放 router-outlet。
  *
- * 每個作品的頁首（品牌列、返回連結）樣式各不相同，維持由各自的 feature 自己畫，
- * 遷移時才能與現行的原生版本逐像素比對。
+ * 每個作品的頁首（品牌列、返回連結）樣式各不相同，維持由各自的 feature 自己畫。
  */
 @Component({
   selector: 'app-root',
   imports: [RouterOutlet],
-  templateUrl: './app.html',
-  styleUrl: './app.css'
+  template: '<router-outlet />'
 })
 export class App {}

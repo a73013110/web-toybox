@@ -1,4 +1,10 @@
-<app-ambient-backdrop />
+<!--
+  背景氛圍純屬裝飾，而且會開計時器與監聽指標移動。
+  用 @defer 等瀏覽器閒下來再載入，卡片本身的互動就不必跟它搶第一批資源。
+-->
+@defer (on idle) {
+  <app-ambient-backdrop />
+}
 
 <a class="back-link" routerLink="/" aria-label="回到作品目錄">
   <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5m6-6-6 6 6 6" /></svg>
@@ -7,7 +13,7 @@
 
 <!--
   不標 aria-modal：左上角的「作品目錄」是刻意留在遮罩外面、而且要能用的退路。
-  這裡用 [hidden] 而不是 @if——prerender 產物一律是「關卡開著」的狀態，
+  用 [hidden] 而不是 @if：關卡與所有場景都必須存在於 prerender 產物裡，
   結構若在瀏覽器端才長出來，hydration 會對不起來。
 -->
 <div class="name-gate" role="dialog" aria-labelledby="nameGateTitle" [hidden]="!nameGateOpen()">
@@ -36,7 +42,12 @@
 </div>
 
 <main class="stage" [attr.inert]="nameGateOpen() ? '' : null">
-  <article class="card" aria-label="邀請卡互動流程" [class.is-teasing]="isTeasing()">
+  <article
+    class="card"
+    aria-label="邀請卡互動流程"
+    [class.is-teasing]="isTeasing()"
+    (animationend)="_onCardAnimationEnd($event)"
+  >
     <div class="progress" aria-hidden="true">
       <span [style.width.%]="progressPercent()"></span>
     </div>
@@ -68,7 +79,8 @@
       </div>
       <p class="eyebrow">Private Invitation</p>
       <h1 id="scene1Title">
-        <span class="invitee-name" [hidden]="!inviteeName()">{{ inviteeName() }}，</span>你願意跟我<br />出去嗎？
+        <span class="invitee-name" [hidden]="!inviteeName()">{{ inviteeName() }}，</span
+        >你願意跟我<br />出去嗎？
       </h1>
       <p class="sub">
         <span class="sub-inner" id="subText" aria-live="polite" [class.fading]="subFading()">
@@ -231,7 +243,12 @@
 
         <div class="confirmation-status" role="status" aria-live="polite" [hidden]="!confirming()">
           <span class="confirmation-orbit" aria-hidden="true"></span>
-          <span class="confirmation-message">{{ confirmMessage() }}</span>
+          <app-waiting-message
+            class="confirmation-message"
+            [active]="confirming()"
+            [messages]="confirmationMessages"
+            [intervalMs]="waitingIntervalMs()"
+          />
         </div>
 
         <button
@@ -261,26 +278,22 @@
       <p class="eyebrow">All Set</p>
       <h2 id="scene5Title">行程已安排</h2>
       <dl class="summary-box">
-        <div class="summary-row"><dt>時間</dt><dd>{{ summary()?.timing || '—' }}</dd></div>
-        <div class="summary-row"><dt>項目</dt><dd>{{ summary()?.activities || '—' }}</dd></div>
+        <div class="summary-row">
+          <dt>時間</dt>
+          <dd>{{ summary()?.timing || '—' }}</dd>
+        </div>
+        <div class="summary-row">
+          <dt>項目</dt>
+          <dd>{{ summary()?.activities || '—' }}</dd>
+        </div>
       </dl>
       <p class="friendly-clause">友情提醒：臨時放鳥，罰請一杯飲料。</p>
-      <button class="btn btn-primary btn-wide" type="button" (click)="_onRestart()">重新開始</button>
+      <button class="btn btn-primary btn-wide" type="button" (click)="_onRestart()">
+        重新開始
+      </button>
     </section>
 
-    @for (particle of particles(); track particle.id) {
-      <span
-        class="particle"
-        [style.width.px]="particle.size"
-        [style.height.px]="particle.size"
-        [style.background]="particle.color"
-        [style.border-radius]="particle.round ? '50%' : '0'"
-        [style.--tx.px]="particle.tx"
-        [style.--ty.px]="particle.ty"
-        [style.--rot.deg]="particle.rot"
-        (animationend)="_onParticleEnd(particle.id)"
-      ></span>
-    }
+    <app-confetti-burst />
   </article>
 
   <footer class="page-footer">

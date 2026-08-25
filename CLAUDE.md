@@ -42,6 +42,12 @@ Angular 22（standalone、zoneless、build 期 prerender）的互動網頁作品
   output 不存在時會靜默退回原生監聽，payload 型別錯亂且編譯期零警告
 - **禁止**在 template 能表達的地方碰 DOM。只有這五類允許直接操作 DOM：
   Canvas 產圖、檔案下載、Clipboard、focus 管理、`sendBeacon`
+- **禁止**用「先卸下 class、下一次 render 再掛上」重播 CSS 動畫。
+  一次性動畫用 `(animationend)` 把 class 卸掉（`animationend` 會冒泡，
+  祖先元素上要確認 `event.target === event.currentTarget`）；
+  真正的進出場用 `animate.enter` / `animate.leave`，class 由框架掛與收
+- **禁止**在 template 裡呼叫方法產生顯示值。要算的東西先用 `computed()` 算成 view model，
+  否則每次變更偵測都會整份重算
 
 ### 邊界
 
@@ -49,12 +55,15 @@ Angular 22（standalone、zoneless、build 期 prerender）的互動網頁作品
 - `shared/` **禁止**帶 invitation-card 或 deep-talk 的業務語意。
   放進去前先問：「拿掉這兩個作品，這段程式碼還成立嗎？」不成立就留在 feature
 - 一段程式**被兩個 feature 實際用到**才移入 `shared/`。不為假想需求預先抽象
+  （目前唯一的住戶是 `shared/timing.ts`，因為兩個作品都要「會自動取消的 setTimeout」）
 
 ### 樣式
 
 - **禁止** hardcode 顏色與 inline style，一律使用 `src/styles/tokens.css` 的語意 token
 - **禁止**為了套樣式而多包一層 Angular component
 - 現有無障礙行為不得退化：`:focus-visible` 外框、`.sr-only`、`prefers-reduced-motion`
+- CSS 一律**一個選擇器一行**（宣告寫在同一行的大括號內）。這是刻意的：
+  樣式檔因此能一眼掃完。`.prettierignore` 已把 `*.css` 排除，`npm run format` 不會動它們
 
 ---
 
@@ -63,10 +72,24 @@ Angular 22（standalone、zoneless、build 期 prerender）的互動網頁作品
 ### Signal 與生命週期
 
 - `signal()` 存可變 UI 狀態，`computed()` 存衍生狀態
-- **`effect()` 只用於外部副作用**（localStorage、`document.title`、Canvas）。
-  禁止用 `effect()` 把一個 signal 的值抄到另一個 signal——那是 `computed()` 的工作
+- 「平常可以自己寫入、但來源一變就該重設」的狀態用 `linkedSignal()`
+  （例如換一疊牌就把 index 歸零）。這正是 `effect()` 最常被誤用的場景
+- **`effect()` 只用於外部副作用**（計時器排程、localStorage、Canvas）。
+  禁止用 `effect()` 把一個 signal 的值抄到另一個 signal——那是 `computed()` 或 `linkedSignal()` 的工作
+- ⚠️ `effect()` 在 prerender 期間也會執行。裡面若有計時器或 `matchMedia`，
+  要自己用一個「已進瀏覽器」的旗標擋掉（見 `ambient-backdrop.ts`）
+- 計時器一律走 `@shared/timing` 的 `injectTimers()`，銷毀時自動取消；
+  不要在元件裡散落 `setTimeout` + 手動 `clearTimeout`
 - 陣列與物件一律不可變更新（`[...arr, item]`、`{ ...obj, k: v }`）
 - 清理用 `inject(DestroyRef).onDestroy(...)`，與初始化邏輯寫在一起；DOM 操作用 `afterNextRender()`
+
+### 路由
+
+- query parameter 與 route param 一律靠 `withComponentInputBinding()` 綁進 `input()`，
+  **禁止**在元件裡注入 `ActivatedRoute` 自己解析網址
+- 換頁過場交給 `withViewTransitions()`，不自己寫轉場動畫
+- 純裝飾、而且會開計時器或監聽器的區塊用 `@defer (on idle)` 延後載入
+  （例如 invitation-card 的 `ambient-backdrop`），讓它自己成為一個 lazy chunk
 
 ### 表單（Signal Forms）
 
@@ -83,6 +106,12 @@ Angular 22（standalone、zoneless、build 期 prerender）的互動網頁作品
 
 - Apps Script 全部是一次性請求：API service 內部用 `HttpClient`，
   **對 feature 只暴露 Promise**（`firstValueFrom`），讓呼叫端維持 `async/await`
+- **讀取**用 `resource()`：載入中／成功／失敗三種狀態交給它管，不要自己開三個 signal 去同步。
+  條件式載入讓 `params` 回傳 `undefined`，resource 就會維持 idle 不打後端
+- ⚠️ `resource` 失敗時 `value()` 會**丟出錯誤**，不是回傳 `defaultValue`。
+  畫面要「安靜地當作沒有資料」時，一律先問 `hasValue()`
+- 使用者觸發、且會產生副作用或消耗配額的動作（送出、叫 AI）維持命令式 `async/await`，
+  不要硬塞進 `resource`——那是為讀取設計的
 - 逾時用 rxjs `timeout(30_000)`，不要在 HttpClient 上另接 `AbortController`
 - 若真的手動 `subscribe()`，一律 `takeUntilDestroyed(destroyRef)`
 
@@ -90,10 +119,10 @@ Angular 22（standalone、zoneless、build 期 prerender）的互動網頁作品
 
 只有兩層，Component 與 Store **不得**知道 endpoint、`app`、`action` 或原始 `ok` 欄位：
 
-| 層 | 位置 | 職責 |
-|---|---|---|
-| Transport | `core/api/apps-script-client.ts` | endpoint、逾時、POST、`sendBeacon`、JSON 解析、`ok` 判斷、共用錯誤碼 |
-| Feature API | `features/<name>/<name>.api.ts` | 具業務語意的具名方法：`loadDeck()`、`sendFeedback()`、`submitInvitation()` |
+| 層          | 位置                             | 職責                                                                       |
+| ----------- | -------------------------------- | -------------------------------------------------------------------------- |
+| Transport   | `core/api/apps-script-client.ts` | endpoint、逾時、POST、`sendBeacon`、JSON 解析、`ok` 判斷、共用錯誤碼       |
+| Feature API | `features/<name>/<name>.api.ts`  | 具業務語意的具名方法：`loadDeck()`、`sendFeedback()`、`submitInvitation()` |
 
 ### 命名與檔案
 
@@ -112,6 +141,18 @@ Angular 22（standalone、zoneless、build 期 prerender）的互動網頁作品
 - 有自己的狀態或生命週期
 - 可形成獨立的測試邊界
 
+純粹「有 input、只負責畫」的區塊留在原本的 template 裡——那不是元件，是排版。
+
+### 測試
+
+- 元件測試用 `TestBed.createComponent()` + `componentRef.setInput()` 餵 signal input，
+  斷言打在 `nativeElement` 上。**禁止**去戳元件的 protected 欄位——那會讓重構動不了
+- `resource()` 的載入會登記成 pending task，`await fixture.whenStable()` 之後畫面就是最終狀態，
+  不需要手動 flush
+- Store 這類沒有畫面的東西直接 `TestBed.inject()`，用假的 API 物件取代 Feature API
+- 有真實邏輯的東西才寫測試：驗證規則、Store 的狀態機、transport 層的錯誤對應。
+  不為 getter 補測試
+
 ---
 
 ## 目錄
@@ -121,10 +162,11 @@ src/
 ├─ app/
 │  ├─ core/api/            # AppsScriptClient、endpoint 設定、錯誤型別（不含 UI）
 │  ├─ core/seo/            # setPageMeta()
-│  ├─ shared/              # 跨 feature 的無業務程式碼（目前是空的，有需要才建）
+│  ├─ shared/timing.ts     # injectTimers()：會自動取消的 setTimeout 與過場最短時間
 │  ├─ features/
 │  │  ├─ home/             # 首頁 + project-card + projects.data.ts
-│  │  ├─ invitation-card/  # 頁面 + .api + .schema + .data + .types + ambient-backdrop
+│  │  ├─ invitation-card/  # 頁面 + .api + .schema + .data + .types
+│  │  │                    #   + ambient-backdrop / confetti-burst / waiting-message / reduced-motion
 │  │  └─ deep-talk/        # 頁面 + .store + .api + .storage + taxonomy + card-image + components/
 │  ├─ app.ts / app.config.ts / app.routes.ts
 ├─ styles/                 # tokens.css、base.css、ui.css
@@ -133,9 +175,6 @@ public/                    # favicon.svg、robots.txt、404.html、.nojekyll
 apps-script/               # Apps Script 後端（原樣保留）
 scripts/                   # gs-deploy.mjs
 ```
-
-`shared/` 目前是空的，而且這是刻意的：兩個作品沒有真的共用任何無業務語意的程式碼。
-出現第二個 feature 也要用的東西時才建立，不要為了填滿目錄而先搬。
 
 新增一個作品要動的地方有兩處：`features/home/projects.data.ts`（首頁卡片與件數）
 與 `app.routes.ts`（路由）。prerender 會自動探索靜態路由，不需要第三份清單。
@@ -182,10 +221,11 @@ npm run gs:deploy      # 更新 Apps Script 部署
 
 ## 延伸文件
 
-| 主題 | 位置 |
-|------|------|
-| 遷移階段、驗收條件、已知風險 | `docs/angular-migration.md` |
-| Apps Script 部署與維護 | `apps-script/README.md` |
+| 主題                                    | 位置                                                  |
+| --------------------------------------- | ----------------------------------------------------- |
+| Angular 22 語法在這個專案的落點對照     | `README.md`「Angular 22 語法地圖」                    |
+| 遷移階段、驗收條件、已知風險            | `docs/angular-migration.md`                           |
+| Apps Script 部署與維護                  | `apps-script/README.md`                               |
 | 參考專案（同一套 Angular 慣例的企業版） | `D:\CoreProject\EDoc_HL\src\EDoc.Web.GDWeb\CLAUDE.md` |
 
 ---

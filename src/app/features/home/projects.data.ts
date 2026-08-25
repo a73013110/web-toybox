@@ -6,7 +6,7 @@ import type { Project } from './projects.types';
  *
  * 陣列順序就是首頁的顯示順序，編號自動產生。
  */
-export const PROJECTS: readonly Project[] = [
+const PROJECTS: readonly Project[] = [
   {
     slug: 'invitation-card',
     type: 'INTERACTIVE CARD',
@@ -17,10 +17,10 @@ export const PROJECTS: readonly Project[] = [
     slug: 'deep-talk',
     type: 'CONVERSATION DECK',
     title: 'Deep Talk',
-    summary: '挑好關係、深度與想聊的主題，抽一疊由淺入深的問題。熱門度由真實使用者投票決定，不是誰猜的。'
+    summary:
+      '挑好關係、深度與想聊的主題，抽一疊由淺入深的問題。熱門度由真實使用者投票決定，不是誰猜的。'
   }
 ];
 
-export function publishedProjects(): readonly Project[] {
-  return PROJECTS.filter((project) => !project.draft);
-}
+/** 首頁顯示的作品。draft 的作品仍可直接開網址，只是不出現在目錄。 */
+export const PUBLISHED_PROJECTS: readonly Project[] = PROJECTS.filter((project) => !project.draft);

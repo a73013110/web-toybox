@@ -1,0 +1,15 @@
+.particle {
+  position: absolute;
+  z-index: 3;
+  top: 30%;
+  left: 50%;
+  pointer-events: none;
+  animation: burst 1s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+@keyframes burst {
+  to {
+    opacity: 0;
+    transform: translate(var(--tx), var(--ty)) rotate(var(--rot)) scale(0);
+  }
+}

@@ -2,7 +2,14 @@
  * 活動選項的鍵。用英文鍵當 model 欄位名，送到後端的才是中文標籤，
  * 這樣改文案不會動到表單結構。
  */
-export const ACTIVITY_KEYS = ['meal', 'walk', 'yourCall', 'lateNight', 'secrets', 'future'] as const;
+export const ACTIVITY_KEYS = [
+  'meal',
+  'walk',
+  'yourCall',
+  'lateNight',
+  'secrets',
+  'future'
+] as const;
 
 export type ActivityKey = (typeof ACTIVITY_KEYS)[number];
 

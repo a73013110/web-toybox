@@ -1,9 +1,20 @@
-import { DestroyRef, Injectable, computed, inject, signal } from '@angular/core';
+import {
+  DestroyRef,
+  Injectable,
+  computed,
+  inject,
+  linkedSignal,
+  resource,
+  signal
+} from '@angular/core';
+
+import { injectTimers } from '@shared/timing';
 
 import { DeepTalkApi, describeDeepTalkError } from './deep-talk.api';
 import { SEEN_LIMIT, loadSeen, loadSetup, saveSeen, saveSetup } from './deep-talk.storage';
 import type {
   DeepTalkScreen,
+  ErrorView,
   QuestionCard,
   RetryAction,
   TopicPreference,
@@ -14,8 +25,8 @@ import type {
 } from './deep-talk.types';
 import { TOPICS } from './taxonomy';
 
-export const SETUP_STEPS = 3;
-export const TRENDING_LIMIT = 20;
+const SETUP_STEPS = 3;
+const TRENDING_LIMIT = 20;
 
 /** 洗牌動畫至少跑這麼久，免得後端太快回應時只閃一下。 */
 const SHUFFLE_MIN_MS = 900;
@@ -40,6 +51,7 @@ const NEXT_TOPIC_STATE: Record<TopicPreference | 'none', TopicPreference | 'none
 @Injectable()
 export class DeepTalkStore {
   private readonly _api = inject(DeepTalkApi);
+  private readonly _timers = injectTimers();
 
   /* ── 畫面 ── */
   readonly screen = signal<DeepTalkScreen>('setup');
@@ -53,30 +65,62 @@ export class DeepTalkStore {
 
   /* ── 牌組 ── */
   readonly deck = signal<readonly QuestionCard[]>([]);
-  readonly index = signal(0);
-  readonly liked = signal(0);
-  /** 每次翻牌 +1，讓畫面可以重播翻牌動畫。 */
-  readonly turnToken = signal(0);
+
+  /*
+   * 換一疊牌就從第一張、零個讚重新開始。
+   * linkedSignal 正是為此而生：平常可寫入，來源一變就重新計算，
+   * 不必寫一個「把 deck 抄到 index」的 effect。
+   */
+  readonly index = linkedSignal({ source: this.deck, computation: () => 0 });
+  readonly liked = linkedSignal({ source: this.deck, computation: () => 0 });
 
   /* ── 回饋 ── */
   readonly sendStatus = signal('');
 
+  /** 已投但還沒送出的票。 */
+  private readonly _pending = signal<readonly Vote[]>([]);
+  readonly pendingCount = computed(() => this._pending().length);
+
   /* ── 錯誤 ── */
-  readonly errorMessage = signal('');
-  readonly retryLabel = signal('再試一次');
-  readonly hideErrorBack = signal(false);
+  readonly error = signal<ErrorView>({ message: '', retryLabel: '', showBack: false, run: noop });
 
   /* ── 熱門排行 ── */
-  readonly trendingCards = signal<readonly TrendingCard[]>([]);
-  readonly trendingEmptyMessage = signal('');
+
+  /*
+   * 只有站在熱門排行畫面時才需要資料，因此 params 在其他畫面回傳 undefined ——
+   * resource 會維持 idle、不打後端；切進來時自動載入，離開再回來自動重載。
+   * 載入中、失敗、成功三種狀態由 resource 自己管，Store 不再自己記。
+   */
+  private readonly _trending = resource<readonly TrendingCard[], number | undefined>({
+    params: () => (this.screen() === 'trending' ? TRENDING_LIMIT : undefined),
+    loader: ({ params }) => this._api.loadTrending(params),
+    defaultValue: []
+  });
+
+  /*
+   * ⚠️ resource 失敗時 value() 會直接丟出錯誤，不是回傳 defaultValue。
+   *    畫面只想要「有就列、沒有就空」，因此一律先問 hasValue()。
+   */
+  readonly trendingCards = computed<readonly TrendingCard[]>(() =>
+    this._trending.hasValue() ? this._trending.value() : []
+  );
+
+  /** 沒有卡片可列時要顯示的一行字。 */
+  readonly trendingStatus = computed(() => {
+    if (this._trending.isLoading()) return '載入中…';
+
+    const failure = this._trending.error();
+    if (failure) return describeDeepTalkError(failure);
+
+    return this.trendingCards().length === 0
+      ? '還沒有累積到足夠的票數。去玩一疊，這裡就會長出來。'
+      : '';
+  });
 
   /* ── 衍生 ── */
   readonly currentCard = computed<QuestionCard | null>(() => this.deck()[this.index()] ?? null);
 
-  readonly cardCount = computed(() => {
-    const total = this.deck().length;
-    return `${String(this.index() + 1).padStart(2, '0')} / ${String(total).padStart(2, '0')}`;
-  });
+  readonly cardCount = computed(() => `${pad(this.index() + 1)} / ${pad(this.deck().length)}`);
 
   /** 票數夠多才顯示比例。 */
   readonly lovedLabel = computed(() => {
@@ -113,13 +157,10 @@ export class DeepTalkStore {
       : '這一疊沒有特別喜歡的，換個主題也許會更對味。'
   );
 
-  /** 已投但還沒送出的票。 */
-  private _pending: Vote[] = [];
   /** 看過的題目 id，避免下次又抽到同一批。 */
   private _seen: readonly string[] = [];
   /** 這組條件下已經發過牌，下一疊可以跳過暖場。 */
   private _warm = false;
-  private _retry: (() => void) | null = null;
   private _trendingFrom: DeepTalkScreen = 'setup';
 
   constructor() {
@@ -143,7 +184,7 @@ export class DeepTalkStore {
 
   /*
    * 重點同一顆只是「確認並繼續」，條件其實沒變，不該把暖場狀態一起洗掉。
-   * 這也是原生版本聽 click 而不是 change 的原因：倒回上一步後再點同一顆，
+   * 這也是元件聽 click 而不是 change 的原因：倒回上一步後再點同一顆，
    * change 不會觸發，使用者就卡住了。
    */
   pickStage(value: string): void {
@@ -163,16 +204,17 @@ export class DeepTalkStore {
   }
 
   cycleTopic(topic: string): void {
-    const current = this.topics()[topic] ?? 'none';
-    const next = NEXT_TOPIC_STATE[current];
+    const next = NEXT_TOPIC_STATE[this.topicStateOf(topic)];
 
     this.topics.update((topics) => {
       const updated: Record<string, TopicPreference> = { ...topics };
+
       if (next === 'none') {
         delete updated[topic];
       } else {
         updated[topic] = next;
       }
+
       return updated;
     });
   }
@@ -217,16 +259,14 @@ export class DeepTalkStore {
         warm
       });
 
-      await this._holdShuffle(startedAt);
+      await this._timers.hold(startedAt, SHUFFLE_MIN_MS);
 
       if (cards.length === 0) {
         this._showEmptyDeck();
         return;
       }
 
-      this.deck.set(cards);
-      this.index.set(0);
-      this.liked.set(0);
+      this.deck.set(cards); // index 與 liked 是 linkedSignal，會跟著歸零。
       this._warm = true;
 
       // 記住看過哪些題目，下次回來才不會又抽到同一批。
@@ -234,9 +274,9 @@ export class DeepTalkStore {
       saveSeen(this._seen);
 
       this.screen.set('cards');
-    } catch (error) {
-      await this._holdShuffle(startedAt);
-      this.showError(describeDeepTalkError(error));
+    } catch (failure) {
+      await this._timers.hold(startedAt, SHUFFLE_MIN_MS);
+      this.showError(describeDeepTalkError(failure));
     }
   }
 
@@ -246,7 +286,7 @@ export class DeepTalkStore {
     const card = this.currentCard();
     if (!card) return;
 
-    this._pending.push({ id: card.id, vote: kind });
+    this._pending.update((votes) => [...votes, { id: card.id, vote: kind }]);
     if (kind === 'like') this.liked.update((count) => count + 1);
 
     if (this.index() + 1 >= this.deck().length) {
@@ -255,22 +295,17 @@ export class DeepTalkStore {
     }
 
     this.index.update((index) => index + 1);
-    this.turnToken.update((token) => token + 1);
   }
 
   private async _finish(): Promise<void> {
     this.screen.set('end');
-    await this._sendFeedback();
-  }
 
-  private async _sendFeedback(): Promise<void> {
-    if (this._pending.length === 0) {
+    const votes = this._takePending();
+    if (votes.length === 0) {
       this.sendStatus.set('');
       return;
     }
 
-    const votes = this._pending;
-    this._pending = [];
     this.sendStatus.set('正在送出回饋…');
 
     try {
@@ -286,16 +321,8 @@ export class DeepTalkStore {
    * 送不到也無所謂 —— 票數只是用來排序，不是必須完整的資料。
    */
   flushPending(): void {
-    if (this._pending.length === 0) return;
-
-    const votes = this._pending;
-    this._pending = [];
-    this._api.beaconFeedback(votes);
-  }
-
-  /** 測試與偵錯用：目前還積著幾張票。 */
-  pendingCount(): number {
-    return this._pending.length;
+    const votes = this._takePending();
+    if (votes.length > 0) this._api.beaconFeedback(votes);
   }
 
   /* ── 收尾與重來 ── */
@@ -312,25 +339,9 @@ export class DeepTalkStore {
 
   /* ── 熱門排行 ── */
 
-  async showTrending(): Promise<void> {
+  showTrending(): void {
     this._trendingFrom = this.screen();
-    this.trendingCards.set([]);
-    this.trendingEmptyMessage.set('載入中…');
-    this.screen.set('trending');
-
-    try {
-      const cards = await this._api.loadTrending(TRENDING_LIMIT);
-
-      if (cards.length === 0) {
-        this.trendingEmptyMessage.set('還沒有累積到足夠的票數。去玩一疊，這裡就會長出來。');
-        return;
-      }
-
-      this.trendingCards.set(cards);
-      this.trendingEmptyMessage.set('');
-    } catch (error) {
-      this.trendingEmptyMessage.set(describeDeepTalkError(error));
-    }
+    this.screen.set('trending'); // 資料由 _trending resource 自己去載。
   }
 
   backFromTrending(): void {
@@ -340,15 +351,13 @@ export class DeepTalkStore {
   /* ── 錯誤 ── */
 
   showError(message: string, retry?: RetryAction): void {
-    this.errorMessage.set(message);
-    this.retryLabel.set(retry?.label ?? '再試一次');
-    this.hideErrorBack.set(Boolean(retry?.hideBack));
-    this._retry = retry?.run ?? (() => void this.startDeck(this._warm));
+    this.error.set({
+      message,
+      retryLabel: retry?.label ?? '再試一次',
+      showBack: !retry?.hideBack,
+      run: retry?.run ?? (() => void this.startDeck(this._warm))
+    });
     this.screen.set('error');
-  }
-
-  runRetry(): void {
-    this._retry?.();
   }
 
   private _showEmptyDeck(): void {
@@ -367,25 +376,31 @@ export class DeepTalkStore {
     this.showError('這個組合目前沒有題目，試著少排除幾個主題，或把深度調淺一點。', {
       label: '回去改條件',
       hideBack: true,
-      run: () => {
-        this.goToStep(1);
-        this.screen.set('setup');
-      }
+      run: () => this.restart()
     });
   }
 
   /* ── 內部 ── */
+
+  /** 取出待送的票並清空佇列，確保同一批不會被送兩次。 */
+  private _takePending(): readonly Vote[] {
+    const votes = this._pending();
+    if (votes.length > 0) this._pending.set([]);
+
+    return votes;
+  }
 
   private _topicsBy(kind: TopicPreference): readonly string[] {
     const topics = this.topics();
     // 依 TOPICS 的順序輸出，讓摘要文字不受使用者點選順序影響。
     return TOPICS.filter((topic) => topics[topic] === kind);
   }
+}
 
-  private _holdShuffle(startedAt: number): Promise<void> {
-    const remaining = SHUFFLE_MIN_MS - (performance.now() - startedAt);
-    if (remaining <= 0) return Promise.resolve();
+function pad(value: number): string {
+  return String(value).padStart(2, '0');
+}
 
-    return new Promise((resolve) => setTimeout(resolve, remaining));
-  }
+function noop(): void {
+  /* 沒有錯誤時的預留位置。 */
 }

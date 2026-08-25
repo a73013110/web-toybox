@@ -15,10 +15,10 @@
 
 ## 作品
 
-| 作品 | 說明 | 文件 |
-| --- | --- | --- |
-| [Invitation Card](https://a73013110.github.io/web-toybox/pages/invitation-card/) | 五步驟互動邀請卡，結果寫入 Google Sheet | [說明](./src/app/features/invitation-card/README.md) |
-| [Deep Talk](https://a73013110.github.io/web-toybox/pages/deep-talk/) | 抽一疊由淺入深的問題，題庫在 Google Sheet，熱門度由使用者投票決定 | [說明](./src/app/features/deep-talk/README.md) |
+| 作品                                                                             | 說明                                                              | 文件                                                 |
+| -------------------------------------------------------------------------------- | ----------------------------------------------------------------- | ---------------------------------------------------- |
+| [Invitation Card](https://a73013110.github.io/web-toybox/pages/invitation-card/) | 五步驟互動邀請卡，結果寫入 Google Sheet                           | [說明](./src/app/features/invitation-card/README.md) |
+| [Deep Talk](https://a73013110.github.io/web-toybox/pages/deep-talk/)             | 抽一疊由淺入深的問題，題庫在 Google Sheet，熱門度由使用者投票決定 | [說明](./src/app/features/deep-talk/README.md)       |
 
 首頁的卡片與件數由 [`projects.data.ts`](./src/app/features/home/projects.data.ts) 自動產生。
 
@@ -30,7 +30,7 @@ web-toybox/
 │   ├── app/
 │   │   ├── core/api/                 # Apps Script transport（endpoint、逾時、錯誤碼）
 │   │   ├── core/seo/                 # 每頁的 title 與 description
-│   │   ├── shared/                   # 跨 feature 的無業務程式碼（目前尚無內容）
+│   │   ├── shared/timing.ts          # injectTimers()：會自動取消的 setTimeout
 │   │   ├── features/
 │   │   │   ├── home/                 # 首頁與作品清單
 │   │   │   ├── invitation-card/      # 邀請卡（Signal Forms）
@@ -46,15 +46,36 @@ web-toybox/
 └── .github/workflows/deploy.yml      # GitHub Pages 部署
 ```
 
+## Angular 22 語法地圖
+
+這個專案刻意讓每一個 Angular 22 的核心語法都有一個「真的需要它」的落點，方便照著讀：
+
+| 語法／API                              | 用在哪裡                                                                   | 解決什麼問題                                              |
+| -------------------------------------- | -------------------------------------------------------------------------- | --------------------------------------------------------- |
+| `signal()` / `computed()`              | 到處                                                                       | 可變狀態與衍生狀態，沒有 zone.js                          |
+| `linkedSignal()`                       | `deep-talk.store.ts` 的 `index` / `liked`、`question-card.ts` 的 `turning` | 「平常可寫入、來源一變就重設」，取代抄值用的 `effect`     |
+| `resource()`                           | `deep-talk.store.ts` 的熱門排行、`followup-panel.ts` 的歷史追問            | 載入中／成功／失敗三態不用自己開三個 signal               |
+| `effect()` + `onCleanup`               | `waiting-message.ts`、`ambient-backdrop.ts`                                | 計時器這種外部副作用，開始與停止寫在同一處                |
+| `input()` / `output()` / `viewChild()` | 所有子元件、`invitation-card.ts` 的 `_confetti`                            | 全 signal 化的元件介面                                    |
+| `withComponentInputBinding()`          | `invitation-card.ts` 的 `?invite=`                                         | query parameter 直接綁成 input，不必注入 `ActivatedRoute` |
+| `withViewTransitions()`                | `app.config.ts`                                                            | 換頁過場交給瀏覽器原生 API                                |
+| Signal Forms                           | `invitation-card.schema.ts`、`followup-panel.ts`                           | 驗證集中宣告、`submit()` 統一處理 touched 與失敗          |
+| `@if` / `@for` / `@switch` / `@let`    | 所有 template                                                              | 內建控制流，沒有 `*ngIf`                                  |
+| `@defer (on idle)`                     | `invitation-card.html` 的背景氛圍                                          | 純裝飾的重量級區塊自己變成 lazy chunk                     |
+| `animate.enter` / `animate.leave`      | `question-card.ts` 的追問區                                                | 進出場動畫的 class 由框架掛與收                           |
+| `afterNextRender()`                    | 讀 `localStorage`、`matchMedia`、focus 管理                                | 只在瀏覽器跑，prerender 時整段跳過                        |
+| `DestroyRef` / `inject(DOCUMENT)`      | `shared/timing.ts`、`deep-talk.store.ts`、`ambient-backdrop.ts`            | 清理與 SSR 安全的 document 存取                           |
+| build 期 prerender + hydration         | `angular.json` 的 `outputMode: static`                                     | 靜態託管也有實體 HTML 與各頁 meta                         |
+
 ## 共用層
 
 樣式分成三層，載入順序不能顛倒（`base.css` 與 `ui.css` 都依賴 `tokens.css` 的變數），入口是 [`src/styles.css`](./src/styles.css)：
 
-| 檔案 | 內容 |
-| --- | --- |
-| `src/styles/tokens.css` | `--ink`、`--gold`、`--paper`、`--surface`、`--font-sans`、`--radius` 等變數。**全站唯一的色票來源**，作品不應該再宣告色碼 |
-| `src/styles/base.css` | box-sizing、邊界重設、focus 樣式、`prefers-reduced-motion` 支援 |
-| `src/styles/ui.css` | `.btn` / `.btn-primary` / `.btn-link` / `.btn-wide`、`.eyebrow`、`.mark`、`.divider`、`.input`、`.field-error`、`.sr-only`、`.back-link` |
+| 檔案                    | 內容                                                                                                                                     |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/styles/tokens.css` | `--ink`、`--gold`、`--paper`、`--surface`、`--font-sans`、`--radius` 等變數。**全站唯一的色票來源**，作品不應該再宣告色碼                |
+| `src/styles/base.css`   | box-sizing、邊界重設、focus 樣式、`prefers-reduced-motion` 支援                                                                          |
+| `src/styles/ui.css`     | `.btn` / `.btn-primary` / `.btn-link` / `.btn-wide`、`.eyebrow`、`.mark`、`.divider`、`.input`、`.field-error`、`.sr-only`、`.back-link` |
 
 作品專屬的變化寫進該作品自己的 `.css`，不要改共用檔。要換整頁調性時，在該元件的 `:host` 覆寫 `--accent` 三個角色 token 即可（見 Deep Talk）。
 
@@ -141,15 +162,15 @@ npm install
 
 ### 常用指令
 
-| 指令 | 用途 |
-| --- | --- |
-| `npm start` | 開發伺服器（<http://localhost:4200/>） |
-| `npm run build` | production build，含 prerender |
-| `npm test` | 前端 + 後端全部測試 |
-| `npm run test:frontend` | Angular 單元測試（Vitest） |
-| `npm run test:backend` | Apps Script 回歸測試 |
-| `npm run lint` | ESLint |
-| `npm run format` | Prettier |
+| 指令                    | 用途                                               |
+| ----------------------- | -------------------------------------------------- |
+| `npm start`             | 開發伺服器（<http://localhost:4200/>）             |
+| `npm run build`         | production build，含 prerender                     |
+| `npm test`              | 前端 + 後端全部測試                                |
+| `npm run test:frontend` | Angular 單元測試（Vitest）                         |
+| `npm run test:backend`  | Apps Script 回歸測試                               |
+| `npm run lint`          | ESLint                                             |
+| `npm run format`        | Prettier（`*.css` 刻意排除，見 `.prettierignore`） |
 
 開發伺服器走根路徑，production build 才會掛上 `/web-toybox/` 的 base href。
 

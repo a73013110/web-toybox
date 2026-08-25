@@ -1,6 +1,5 @@
-import { Component, computed, inject, input, signal } from '@angular/core';
-import type { OnInit } from '@angular/core';
-import { FormField, form, maxLength } from '@angular/forms/signals';
+import { Component, computed, inject, input, resource, signal } from '@angular/core';
+import { FormField, form, maxLength, submit } from '@angular/forms/signals';
 
 import { AppsScriptError } from '@core/api/apps-script-error';
 
@@ -17,15 +16,15 @@ interface FollowupModel {
  *
  * 一顆按鈕分成兩段：展開時先顯示別人問過的追問 —— 那是讀試算表，不花配額也不用等；
  * 底下才是輸入框，想要新的再叫 AI。預設路徑不燒配額，是這個設計的重點。
- *
- * 這一區有自己的非同步狀態與表單，因此獨立成元件；換題目時由外層重建。
  */
 @Component({
   selector: 'app-followup-panel',
   imports: [FormField],
   styleUrl: './followup-panel.css',
   template: `
-    <p class="followup-lead" [hidden]="items().length === 0">{{ lead() }}</p>
+    @if (lead()) {
+      <p class="followup-lead">{{ lead() }}</p>
+    }
     <ul class="followup-list">
       @for (item of items(); track $index) {
         <li>{{ item }}</li>
@@ -50,76 +49,90 @@ interface FollowupModel {
     <p class="followup-status" role="status">{{ status() }}</p>
   `
 })
-export class FollowupPanel implements OnInit {
+export class FollowupPanel {
   private readonly _api = inject(DeepTalkApi);
 
   /** 目前這張題目的 id。元件由外層在換題時重建，因此不需要監看變化。 */
   readonly cardId = input.required<string>();
+
+  /*
+   * 別人問過的追問。
+   *
+   * 用 resource 而不是在 ngOnInit 裡自己 await：載入中／成功／失敗三種狀態都由
+   * resource 管，元件不必再開三個 signal 去同步它們；required input 也不會有
+   * 「建構當下還沒綁定」的時序問題 —— params 是在 render 時才第一次求值。
+   */
+  private readonly _history = resource({
+    params: () => this.cardId(),
+    loader: ({ params }) => this._api.loadFollowupHistory(params),
+    defaultValue: [] as readonly string[]
+  });
+
+  /** AI 想出來的那批。有了就蓋掉歷史清單。 */
+  private readonly _generated = signal<readonly string[] | null>(null);
+  private readonly _askStatus = signal('');
+
+  protected readonly asking = signal(false);
+
+  /*
+   * ⚠️ resource 失敗時 value() 會直接丟出錯誤，不是回傳 defaultValue。
+   *    要在畫面上「安靜地當作沒有資料」，一律先問 hasValue()。
+   */
+  private readonly _historyItems = computed<readonly string[]>(() =>
+    this._history.hasValue() ? this._history.value() : []
+  );
+
+  protected readonly items = computed(() => this._generated() ?? this._historyItems());
+
+  protected readonly lead = computed(() => {
+    if (this._generated()) return 'AI 想到的：';
+    return this._historyItems().length > 0 ? '別人問過的：' : '';
+  });
+
+  protected readonly status = computed(() => {
+    if (this._askStatus()) return this._askStatus();
+    if (this._history.isLoading()) return '看看別人問過什麼…';
+
+    // 歷史讀不到不算什麼，輸入框還在，照樣可以叫 AI 想。
+    if (this._history.error() || this.items().length > 0) return '';
+
+    return '還沒有人問過這一題。要不要當第一個？';
+  });
 
   private readonly _model = signal<FollowupModel>({ direction: '' });
   protected readonly form = form(this._model, (path) => {
     maxLength(path.direction, MAX_DIRECTION_LENGTH);
   });
 
-  protected readonly items = signal<readonly string[]>([]);
-  protected readonly lead = signal('');
-  protected readonly status = signal('看看別人問過什麼…');
-  protected readonly asking = signal(false);
-
-  protected readonly hasItems = computed(() => this.items().length > 0);
-
-  /*
-   * ⚠️ 這段不能放進 constructor：required input 在建構當下還沒綁定，
-   *    讀 cardId() 會直接拋錯，歷史追問就永遠不會送出（而且畫面上只會
-   *    一直停在「看看別人問過什麼…」，看不出哪裡壞了）。
-   *    這個元件每次展開都重建，因此一次性的 ngOnInit 正好夠用。
-   */
-  ngOnInit(): void {
-    void this._loadHistory();
-  }
-
-  /** 展開時先讀別人問過的，不花 AI 配額。 */
-  private async _loadHistory(): Promise<void> {
-    const id = this.cardId();
-
-    try {
-      const followups = await this._api.loadFollowupHistory(id);
-
-      this.items.set(followups);
-      this.lead.set('別人問過的：');
-      this.status.set(followups.length > 0 ? '' : '還沒有人問過這一題。要不要當第一個？');
-    } catch {
-      // 歷史讀不到不算什麼，輸入框還在，照樣可以叫 AI 想。
-      this.items.set([]);
-      this.lead.set('');
-      this.status.set('');
-    }
-  }
-
   protected async _onAsk(event: Event): Promise<void> {
     event.preventDefault();
     if (this.asking()) return;
 
     this.asking.set(true);
-    this.status.set('AI 正在想…');
+    this._askStatus.set('AI 正在想…');
 
-    try {
-      const followups = await this._api.generateFollowups(
-        this.cardId(),
-        this._model().direction.trim()
-      );
+    await submit(this.form, {
+      action: async () => {
+        try {
+          this._generated.set(
+            await this._api.generateFollowups(this.cardId(), this._model().direction.trim())
+          );
+          this._askStatus.set('');
+        } catch (failure) {
+          // 追問只是加分項，失敗就說一聲，不要把人擋在這裡。
+          this._askStatus.set(describeFollowupError(failure));
+        }
+      }
+    });
 
-      this.items.set(followups);
-      this.lead.set('AI 想到的：');
-      this.status.set('');
-    } catch (error) {
-      // 追問只是加分項，失敗就說一聲，不要把人擋在這裡。
-      const code = error instanceof AppsScriptError ? error.code : undefined;
-      this.status.set(
-        code === 'rate_limited' ? '現在有點忙，等一下再試。' : 'AI 這次沒想出來，換個方向再試一次。'
-      );
-    } finally {
-      this.asking.set(false);
-    }
+    this.asking.set(false);
   }
+}
+
+function describeFollowupError(error: unknown): string {
+  const code = error instanceof AppsScriptError ? error.code : undefined;
+
+  return code === 'rate_limited'
+    ? '現在有點忙，等一下再試。'
+    : 'AI 這次沒想出來，換個方向再試一次。';
 }

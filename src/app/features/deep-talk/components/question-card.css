@@ -91,3 +91,12 @@
   .card { min-height: 380px; padding: 30px 32px 24px; }
   .vote { flex-direction: row-reverse; gap: 20px; justify-content: center; }
 }
+
+/* animate.enter / animate.leave 掛上的暫時 class，動畫播完由框架自己移除。 */
+.followup.is-entering { animation: followup-in 220ms ease both; }
+.followup.is-leaving { animation: followup-in 160ms ease reverse both; }
+
+@keyframes followup-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: none; }
+}

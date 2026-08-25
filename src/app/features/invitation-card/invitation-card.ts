@@ -1,20 +1,24 @@
 import {
   Component,
-  DestroyRef,
   ElementRef,
   Injector,
   afterNextRender,
   computed,
   inject,
-  signal
+  input,
+  signal,
+  viewChild
 } from '@angular/core';
 import { FormField, form, submit } from '@angular/forms/signals';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import type { FieldState } from '@angular/forms/signals';
+import { RouterLink } from '@angular/router';
 
 import { describeAppsScriptError } from '@core/api/apps-script-error';
 import { setPageMeta } from '@core/seo/page-meta';
+import { injectTimers } from '@shared/timing';
 
 import { AmbientBackdrop } from './ambient-backdrop';
+import { ConfettiBurst } from './confetti-burst';
 import { InvitationCardApi } from './invitation-card.api';
 import { invitationSchema } from './invitation-card.schema';
 import {
@@ -25,34 +29,19 @@ import {
   DECLINE_REACTIONS,
   DEFAULT_DECLINE_LABEL,
   DEFAULT_SUB_TEXT,
-  MAX_CUSTOM_ACTIVITY_LENGTH,
   MAX_NAME_LENGTH,
   MIN_CONFIRMATION_MS,
   TIMING_OPTIONS
 } from './invitation-card.data';
 import type { InvitationModel } from './invitation-card.types';
-
-interface Particle {
-  readonly id: number;
-  readonly size: number;
-  readonly color: string;
-  readonly round: boolean;
-  readonly tx: number;
-  readonly ty: number;
-  readonly rot: number;
-}
-
-interface ErrorReadable {
-  touched(): boolean;
-  errors(): readonly { readonly message?: string }[];
-}
+import { injectReducedMotion } from './reduced-motion';
+import { WaitingMessage } from './waiting-message';
 
 const TOTAL_STEPS = 5;
-const PARTICLE_COLORS = ['#141414', '#a8874f', '#7a7a7a'];
 
 @Component({
   selector: 'app-invitation-card',
-  imports: [RouterLink, FormField, AmbientBackdrop],
+  imports: [RouterLink, FormField, AmbientBackdrop, ConfettiBurst, WaitingMessage],
   templateUrl: './invitation-card.html',
   styleUrl: './invitation-card.css',
   host: {
@@ -61,17 +50,23 @@ const PARTICLE_COLORS = ['#141414', '#a8874f', '#7a7a7a'];
 })
 export class InvitationCard {
   private readonly _api = inject(InvitationCardApi);
-  private readonly _route = inject(ActivatedRoute);
   private readonly _host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly _injector = inject(Injector);
-  private readonly _destroyRef = inject(DestroyRef);
+  private readonly _timers = injectTimers();
+  private readonly _reduceMotion = injectReducedMotion();
 
-  protected readonly totalSteps = TOTAL_STEPS;
+  /*
+   * ?invite=<名字>。withComponentInputBinding() 讓 router 直接把 query parameter
+   * 綁進 input，元件因此不需要注入 ActivatedRoute，也不必自己去解析網址。
+   */
+  readonly invite = input('');
+
+  private readonly _confetti = viewChild.required(ConfettiBurst);
+
   protected readonly timingOptions = TIMING_OPTIONS;
   protected readonly activityOptions = ACTIVITY_OPTIONS;
   protected readonly customActivityIcon = CUSTOM_ACTIVITY_ICON;
-  protected readonly maxNameLength = MAX_NAME_LENGTH;
-  protected readonly maxCustomActivityLength = MAX_CUSTOM_ACTIVITY_LENGTH;
+  protected readonly confirmationMessages = CONFIRMATION_REACTIONS;
 
   /* ── Signal Forms：model 是唯一資料源，驗證規則見 invitation-card.schema.ts ── */
   private readonly _model = signal<InvitationModel>(createInvitationModel());
@@ -86,19 +81,16 @@ export class InvitationCard {
   protected readonly isTeasing = signal(false);
   protected readonly declineCount = signal(0);
   protected readonly confirming = signal(false);
-  protected readonly confirmMessage = signal('');
   protected readonly submitError = signal('');
-  protected readonly particles = signal<readonly Particle[]>([]);
   protected readonly summary = signal<{ timing: string; activities: string } | null>(null);
 
   /** 送出成功的那份選擇。內容沒改就不讓重送。 */
   private readonly _submittedSignature = signal('');
 
   /* ── 衍生狀態 ── */
-  protected readonly stepLabel = computed(
-    () => `${String(this.step()).padStart(2, '0')} / ${String(TOTAL_STEPS).padStart(2, '0')}`
-  );
+  protected readonly stepLabel = computed(() => `${pad(this.step())} / ${pad(TOTAL_STEPS)}`);
   protected readonly progressPercent = computed(() => (this.step() / TOTAL_STEPS) * 100);
+  protected readonly waitingIntervalMs = computed(() => (this._reduceMotion() ? 200 : 480));
 
   protected readonly inviteeName = computed(() => this._model().inviteeName.trim());
 
@@ -108,9 +100,12 @@ export class InvitationCard {
   protected readonly declineExhausted = computed(
     () => this.declineCount() >= DECLINE_REACTIONS.length
   );
+
   /* 每次婉拒都讓按鈕換位置，也讓「願意」悄悄更有存在感。 */
   private readonly _dodgeDirection = computed(() => (this.declineCount() % 2 === 0 ? -1 : 1));
-  protected readonly dodgeX = computed(() => this._dodgeDirection() * (18 + this.declineCount() * 8));
+  protected readonly dodgeX = computed(
+    () => this._dodgeDirection() * (18 + this.declineCount() * 8)
+  );
   protected readonly dodgeRotate = computed(
     () => this._dodgeDirection() * (1 + this.declineCount() * 0.6)
   );
@@ -146,6 +141,7 @@ export class InvitationCard {
       this.form.customActivity().invalid() ||
       this.alreadySubmitted()
   );
+
   protected readonly confirmLabel = computed(() => {
     if (this.confirming()) return '正在喬時間';
     if (this.alreadySubmitted()) return '已送出';
@@ -155,23 +151,17 @@ export class InvitationCard {
   });
 
   /** 只有被碰過的欄位才顯示錯誤，避免一進畫面就滿江紅。 */
-  protected readonly nameError = computed(() => this._errorOf(this.form.inviteeName()));
-  protected readonly timingError = computed(() => this._errorOf(this.form.timing()));
+  protected readonly nameError = computed(() => errorOf(this.form.inviteeName()));
+  protected readonly timingError = computed(() => errorOf(this.form.timing()));
   protected readonly activityError = computed(() => {
     if (this.submitError()) return this.submitError();
 
     // 自訂項目缺內容時立刻提示，不等使用者離開欄位——
     // 送出鍵會同時變灰，沒有說明的話沒人知道卡在哪。
-    const customError = this.form.customActivity().errors()[0]?.message;
-    if (customError) return customError;
-
-    return this._errorOf(this.form.activities());
+    return this.form.customActivity().errors()[0]?.message ?? errorOf(this.form.activities());
   });
 
-  private _reduceMotion = false;
-  private _nextParticleId = 0;
   private _subTextToken = 0;
-  private _confirmToken = 0;
 
   constructor() {
     setPageMeta({
@@ -179,16 +169,17 @@ export class InvitationCard {
       description: '選擇空檔暗號與活動，完成一張專屬的邀請卡。'
     });
 
-    // ?invite= 只在瀏覽器才有值。prerender 產出的 HTML 一律是「關卡開著」的狀態，
-    // 因此名字關卡與所有場景都留在 DOM 裡、只切換 hidden，不用 @if ——
-    // 否則伺服器與瀏覽器的結構會對不起來，hydration 會報錯。
+    /*
+     * 名字關卡刻意等到 hydration 之後才決定要不要打開。
+     *
+     * 分享出去的網址一律帶著 ?invite=，那條路徑最重要：prerender 產物維持
+     * 「關卡關著」的樣子，受邀者一進來就直接看到卡片，不會先閃過一層遮罩。
+     * 也因此所有場景都留在 DOM 裡、只切換 hidden —— 結構若在瀏覽器端才長出來，
+     * hydration 會對不起來。
+     */
     afterNextRender(() => {
-      this._reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
-
       // URL 參數也限制為與輸入欄相同的長度。
-      const invited = (this._route.snapshot.queryParamMap.get('invite') ?? '')
-        .trim()
-        .slice(0, MAX_NAME_LENGTH);
+      const invited = this.invite().trim().slice(0, MAX_NAME_LENGTH);
 
       if (invited) {
         this.form.inviteeName().value.set(invited);
@@ -222,8 +213,8 @@ export class InvitationCard {
   }
 
   protected _onAccept(): void {
-    this._burst(12);
-    this._later(() => this._goToStep(2), this._reduceMotion ? 0 : 320);
+    this._confetti().burst(12);
+    this._timers.after(this._reduceMotion() ? 0 : 320, () => this._goToStep(2));
   }
 
   protected _onContinue(): void {
@@ -231,17 +222,20 @@ export class InvitationCard {
   }
 
   protected _onDecline(): void {
-    if (this.declineExhausted()) return;
-
     const reaction = DECLINE_REACTIONS[this.declineCount()];
     if (!reaction) return;
 
     this._setSubText(reaction.message);
     this.declineCount.update((count) => count + 1);
+    this.isTeasing.set(true);
+  }
 
-    // 重播搖晃動畫：先卸下 class，下一次 render 再掛上。
-    this.isTeasing.set(false);
-    afterNextRender(() => this.isTeasing.set(true), { injector: this._injector });
+  /*
+   * 搖晃動畫播完就把 class 卸掉，下一次婉拒才會重播。
+   * animationend 會冒泡，場景自己的 fadeUp 也會經過這裡，因此要確認事件來自卡片本身。
+   */
+  protected _onCardAnimationEnd(event: AnimationEvent): void {
+    if (event.target === event.currentTarget) this.isTeasing.set(false);
   }
 
   protected _onTimingSubmit(event: Event): void {
@@ -273,8 +267,7 @@ export class InvitationCard {
     this.submitError.set('');
 
     const startedAt = performance.now();
-    this.confirming.set(true);
-    this._playConfirmationRitual(); // 不等待：過場持續循環，直到送出有結果或流程被重設。
+    this.confirming.set(true); // 等待文字由 <app-waiting-message> 自己循環播放。
 
     // submit() 會先標記 touched 並驗證，沒過就不會執行 action。
     const succeeded = await submit(this.form, {
@@ -297,20 +290,21 @@ export class InvitationCard {
     });
 
     if (!succeeded) {
-      this._stopConfirmationRitual();
+      this.confirming.set(false);
       return;
     }
 
-    await this._holdConfirmationRitual(startedAt);
+    // 送出很快時仍讓過場走完，避免畫面一閃而過。
+    await this._timers.hold(startedAt, this._reduceMotion() ? 0 : MIN_CONFIRMATION_MS);
 
     this.summary.set({
       timing: this._model().timing,
       activities: this.chosenActivities().join('、')
     });
     this._submittedSignature.set(this._selectionSignature()); // 同一份結果不再重複提交。
-    this._stopConfirmationRitual();
+    this.confirming.set(false);
     this._goToStep(5);
-    this._burst(20);
+    this._confetti().burst(20);
   }
 
   /* ── 重新開始 ── */
@@ -324,18 +318,14 @@ export class InvitationCard {
     this.subText.set(DEFAULT_SUB_TEXT);
     this.subFading.set(false);
     this.isTeasing.set(false);
+    this.confirming.set(false);
     this.submitError.set('');
     this.summary.set(null);
     this._submittedSignature.set('');
-    this._subTextToken += 1;
-    this._stopConfirmationRitual();
+    this._subTextToken += 1; // 讓還在等待中的文字動畫失效。
 
     // 名字是進入流程的前提，重新開始時不清掉。
     this.form.inviteeName().value.set(name);
-  }
-
-  protected _onParticleEnd(id: number): void {
-    this.particles.update((particles) => particles.filter((particle) => particle.id !== id));
   }
 
   /* ── 內部 ── */
@@ -345,75 +335,15 @@ export class InvitationCard {
     this._focusActiveScene();
   }
 
-  private _errorOf(state: ErrorReadable): string {
-    if (!state.touched()) return '';
-    return state.errors()[0]?.message ?? '';
-  }
-
   private _setSubText(text: string): void {
     const token = ++this._subTextToken;
     this.subFading.set(true);
 
-    this._later(() => {
-      if (token !== this._subTextToken) return; // 忽略已被更新呼叫取代的文字動畫。
+    this._timers.after(this._reduceMotion() ? 0 : 220, () => {
+      if (token !== this._subTextToken) return; // 忽略已被後續呼叫取代的文字動畫。
       this.subText.set(text);
       this.subFading.set(false);
-    }, this._reduceMotion ? 0 : 220);
-  }
-
-  /*
-   * 循環播放等待文字直到送出有結果：Apps Script 冷啟動可能要數秒，
-   * 固定長度的過場會提早停住，看起來像是畫面當掉。
-   */
-  private _playConfirmationRitual(): void {
-    const token = ++this._confirmToken;
-    const delay = this._reduceMotion ? 200 : 480;
-    let index = 0;
-
-    const tick = (): void => {
-      if (token !== this._confirmToken) return;
-      this.confirmMessage.set(CONFIRMATION_REACTIONS[index % CONFIRMATION_REACTIONS.length] ?? '');
-      index += 1;
-      this._later(tick, delay);
-    };
-
-    tick();
-  }
-
-  private _holdConfirmationRitual(startedAt: number): Promise<void> {
-    const minimum = this._reduceMotion ? 0 : MIN_CONFIRMATION_MS;
-    const remaining = minimum - (performance.now() - startedAt);
-
-    if (remaining <= 0) return Promise.resolve();
-
-    return new Promise((resolve) => this._later(resolve, remaining));
-  }
-
-  private _stopConfirmationRitual(): void {
-    this._confirmToken += 1; // 讓仍在等待中的舊流程立即失效。
-    this.confirming.set(false);
-    this.confirmMessage.set('');
-  }
-
-  private _burst(count: number): void {
-    if (this._reduceMotion) return;
-
-    const created: Particle[] = [];
-    for (let index = 0; index < count; index += 1) {
-      const angle = Math.random() * Math.PI * 2;
-      const distance = 50 + Math.random() * 80;
-      created.push({
-        id: this._nextParticleId++,
-        size: 3 + Math.random() * 3,
-        color: PARTICLE_COLORS[Math.floor(Math.random() * PARTICLE_COLORS.length)] ?? '#141414',
-        round: Math.random() > 0.5,
-        tx: Math.cos(angle) * distance,
-        ty: Math.sin(angle) * distance,
-        rot: Math.random() * 360
-      });
-    }
-
-    this.particles.update((particles) => [...particles, ...created]);
+    });
   }
 
   /** 焦點管理是少數必須直接碰 DOM 的情況，等下一次 render 完才找得到目前的場景。 */
@@ -432,10 +362,13 @@ export class InvitationCard {
       { injector: this._injector }
     );
   }
+}
 
-  /** setTimeout + 自動清理。元件銷毀後不該再有回呼改動已消失的畫面。 */
-  private _later(callback: () => void, delayMs: number): void {
-    const handle = setTimeout(callback, delayMs);
-    this._destroyRef.onDestroy(() => clearTimeout(handle));
-  }
+function pad(value: number): string {
+  return String(value).padStart(2, '0');
+}
+
+/** 只有被碰過的欄位才回報錯誤。 */
+function errorOf<T>(state: FieldState<T>): string {
+  return state.touched() ? (state.errors()[0]?.message ?? '') : '';
 }

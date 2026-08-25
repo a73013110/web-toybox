@@ -1,16 +1,20 @@
 <!doctype html>
 <html lang="zh-Hant">
   <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="robots" content="noindex">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex" />
     <title>找不到頁面 — Web Toybox</title>
     <!--
       404 頁會在「被請求的網址」下渲染，相對路徑會指向錯誤位置，
       因此樣式一律內嵌，圖示與連結則以 JavaScript 推算正確的站台根目錄。
     -->
     <style>
-      *, *::before, *::after { box-sizing: border-box; }
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
       body {
         display: grid;
         place-items: center;
@@ -18,14 +22,19 @@
         margin: 0;
         padding: 24px;
         color: #141414;
-        font-family: Inter, -apple-system, BlinkMacSystemFont, "PingFang TC", sans-serif;
+        font-family:
+          Inter,
+          -apple-system,
+          BlinkMacSystemFont,
+          'PingFang TC',
+          sans-serif;
         text-align: center;
         background: linear-gradient(180deg, #f7f5f1, #eeece7);
       }
       .code {
         margin: 0;
         color: rgba(168, 135, 79, 0.28);
-        font-family: "Cormorant Garamond", "Times New Roman", serif;
+        font-family: 'Cormorant Garamond', 'Times New Roman', serif;
         font-size: clamp(7rem, 26vw, 15rem);
         font-weight: 500;
         line-height: 0.8;
@@ -41,11 +50,16 @@
       }
       h1 {
         margin: 0 0 14px;
-        font-family: "Cormorant Garamond", "Times New Roman", serif;
+        font-family: 'Cormorant Garamond', 'Times New Roman', serif;
         font-size: 32px;
         font-weight: 600;
       }
-      p.sub { margin: 0 0 32px; color: #74716c; font-size: 13px; line-height: 1.8; }
+      p.sub {
+        margin: 0 0 32px;
+        color: #74716c;
+        font-size: 13px;
+        line-height: 1.8;
+      }
       .btn {
         display: inline-block;
         min-width: 220px;
@@ -61,8 +75,13 @@
         box-shadow: 0 10px 24px rgba(20, 20, 20, 0.2);
         transition: background 200ms ease;
       }
-      .btn:hover { background: #a8874f; }
-      .btn:focus-visible { outline: 3px solid #a8874f; outline-offset: 4px; }
+      .btn:hover {
+        background: #a8874f;
+      }
+      .btn:focus-visible {
+        outline: 3px solid #a8874f;
+        outline-offset: 4px;
+      }
     </style>
   </head>
   <body>

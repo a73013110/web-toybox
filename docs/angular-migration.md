@@ -9,7 +9,8 @@
 
 ## 遷移已完成
 
-六個階段都做完了，`pages/`、`shared/`、`assets/`、`templates/` 與根目錄的靜態檔案都已移除。
+六個遷移階段都做完了，`pages/`、`shared/`、`assets/`、`templates/` 與根目錄的靜態檔案都已移除。
+之後又加了一個「階段七：架構最佳化」，把寫法換成 Angular 22 真正的做法（見下方）。
 下面保留原本的計畫內容，因為那些「為什麼這樣選」的理由之後還會用到。
 
 實作過程中與計畫不同的三處：
@@ -18,9 +19,10 @@
    beasties 把上百個 CJK subset 的 `@font-face` 全部內聯，每頁 HTML 從 12 KB
    膨脹到 390–420 KB。原生版本本來就是純外部 `<link>`，因此在 `angular.json`
    設 `optimization.fonts.inline: false`，順便消掉先前列在風險表的 FOUT 差異。
-2. **`shared/` 是空的**。原本規劃了 `shared/browser/storage.service.ts`，但
+2. **`shared/` 一開始是空的**。原本規劃了 `shared/browser/storage.service.ts`，但
    localStorage 只有 Deep Talk 用，照「被兩個 feature 用到才移入 shared」的規則
    應該留在 feature 裡，因此放在 `deep-talk.storage.ts`。
+   （階段七才出現第一個真正被兩邊用到的東西：`shared/timing.ts`。）
 3. **ESLint 提前到階段一**。它能自動擋掉四條鐵律，早點加比較划算。
 
 過程中抓到兩個 bug，都寫在對應階段的 commit 訊息裡：
@@ -34,12 +36,12 @@
 
 ## 0. 先承認的取捨
 
-| 項目 | 現在 | 遷移後 | 判斷 |
-|---|---|---|---|
-| 首頁傳輸量 | 數十 KB | 約 100–150 KB（gzip） | 接受。學習價值 > 體積 |
-| 建置需求 | 無 | Node + Angular CLI | 接受。README 第一句要改寫 |
-| 每頁 meta | 各頁自己有 | 需靠 prerender 維持 | **不可退步**，見下方 §2 |
-| 新增作品成本 | 改 1 個檔 | 改 2 個檔 | 接受 |
+| 項目         | 現在       | 遷移後                | 判斷                      |
+| ------------ | ---------- | --------------------- | ------------------------- |
+| 首頁傳輸量   | 數十 KB    | 約 100–150 KB（gzip） | 接受。學習價值 > 體積     |
+| 建置需求     | 無         | Node + Angular CLI    | 接受。README 第一句要改寫 |
+| 每頁 meta    | 各頁自己有 | 需靠 prerender 維持   | **不可退步**，見下方 §2   |
+| 新增作品成本 | 改 1 個檔  | 改 2 個檔             | 接受                      |
 
 README 目前寫「無需建置工具或前端框架」，遷移完成後這句話就不成立，必須一併更新。
 
@@ -188,13 +190,47 @@ GitHub Pages 的 Source 從 branch 改成 GitHub Actions。更新 README。
 
 ---
 
+## 階段七：架構最佳化 ✅ 已完成
+
+遷移只是「先把畫面搬過來、行為不變」，第七階段才把寫法換成 Angular 22 真正的做法。
+公開網址、後端契約與所有互動行為都沒有改變。
+
+換掉了什麼：
+
+| 原本                                           | 現在                                                   | 為什麼                                |
+| ---------------------------------------------- | ------------------------------------------------------ | ------------------------------------- |
+| `screen()` 之外另開四個錯誤 signal             | 一個 `ErrorView` 物件 signal                           | 四個 signal 一定會有忘了同步的一天    |
+| 熱門排行自己管載入中／失敗／空                 | `resource()`，`params` 回傳 `undefined` 就 idle        | 三態交給框架，Store 少三個 signal     |
+| `FollowupPanel` 用 `ngOnInit` 抓歷史           | `resource({ params: cardId })`                         | 順便根除 required input 的時序問題    |
+| `startDeck()` 手動把 index／liked 歸零         | `linkedSignal({ source: deck })`                       | 「來源一變就重設」正是它的用途        |
+| 先卸 class、`afterNextRender` 再掛上以重播動畫 | `(animationend)` 卸 class ／ `animate.enter`           | 不必為了播動畫去注入 `Injector`       |
+| `ActivatedRoute.snapshot.queryParamMap`        | `withComponentInputBinding()` + `input()`              | 元件不需要知道自己被誰路由過來        |
+| 元件內散落的 `setTimeout` + `DestroyRef`       | `@shared/timing` 的 `injectTimers()`                   | 這是 `shared/` 的第一個正當住戶       |
+| 441 行的 `invitation-card.ts`                  | 拆出 confetti-burst / waiting-message / reduced-motion | 三者都有自己的狀態與生命週期          |
+| template 裡呼叫 `stateOf()` / `metaOf()`       | `computed()` 產生 view model                           | template 內的方法每次變更偵測都會重算 |
+| 背景氛圍與主要內容一起載入                     | `@defer (on idle)`                                     | 純裝飾的 8 KB 不該跟卡片搶第一批資源  |
+
+順手抓到的問題：
+
+- `resource` 失敗時 `value()` 會**丟出錯誤**而不是回傳 `defaultValue`。
+  熱門排行與追問歷史都改成先問 `hasValue()`——這是寫元件測試時才浮出來的。
+- 舊的 `_later()` 每次排程都新增一個 `DestroyRef.onDestroy` 回呼，長頁面會一直累積。
+  `injectTimers()` 改成集中一份 Set。
+- `DeepTalkStore` 的 `turnToken` 從來沒有人讀。
+
+同時加嚴的檢查：`verbatimModuleSyntax`、`noUnusedLocals` / `noUnusedParameters`、
+template 的 `extendedDiagnostics` 一律視為 error，
+以及 ESLint 的型別感知規則（`no-uncalled-signals`、`prefer-signals`、`no-implicit-take-until-destroyed`⋯）。
+
+---
+
 ## 5. 已知風險
 
-| 風險 | 徵狀 | 對策 |
-|---|---|---|
-| HttpClient 蓋掉 content-type | CORS 錯誤，看不出跟 body 型別有關 | body 先 stringify，寫測試鎖住 header |
+| 風險                          | 徵狀                                | 對策                                          |
+| ----------------------------- | ----------------------------------- | --------------------------------------------- |
+| HttpClient 蓋掉 content-type  | CORS 錯誤，看不出跟 body 型別有關   | body 先 stringify，寫測試鎖住 header          |
 | meta 設在 `afterNextRender()` | 本機看起來正常，build 產物沒有 meta | 檢查 `dist/browser/pages/*/index.html` 原始碼 |
-| Deep Talk 回饋遺失 | 沒有錯誤訊息，Sheet 就是少資料 | `DestroyRef.onDestroy()` flush + 手動驗收 |
-| `gs-deploy.mjs` 讀不到 config | `npm run gs:deploy` 直接報錯 | 階段三同步改 |
-| Signal Forms breaking change | 升 Angular 版本後編譯失敗 | 接受；升版前先看 changelog |
-| 新增動態路由後該頁 404 | 只有直接進入或重新整理才重現 | 路由維持靜態，或補 prerender 清單 |
+| Deep Talk 回饋遺失            | 沒有錯誤訊息，Sheet 就是少資料      | `DestroyRef.onDestroy()` flush + 手動驗收     |
+| `gs-deploy.mjs` 讀不到 config | `npm run gs:deploy` 直接報錯        | 階段三同步改                                  |
+| Signal Forms breaking change  | 升 Angular 版本後編譯失敗           | 接受；升版前先看 changelog                    |
+| 新增動態路由後該頁 404        | 只有直接進入或重新整理才重現        | 路由維持靜態，或補 prerender 清單             |

@@ -4,7 +4,7 @@ import { RouterLink } from '@angular/router';
 import { setPageMeta } from '@core/seo/page-meta';
 
 import { ProjectCard } from './project-card';
-import { publishedProjects } from './projects.data';
+import { PUBLISHED_PROJECTS } from './projects.data';
 
 @Component({
   selector: 'app-home',
@@ -13,8 +13,8 @@ import { publishedProjects } from './projects.data';
   styleUrl: './home.css'
 })
 export class Home {
-  /* 靜態資料，不會在執行期變動，因此不需要包成 signal。 */
-  protected readonly projects = publishedProjects();
+  /* 靜態資料，執行期不會變動，因此不需要包成 signal。 */
+  protected readonly projects = PUBLISHED_PROJECTS;
 
   constructor() {
     setPageMeta({

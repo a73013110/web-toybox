@@ -10,7 +10,12 @@ export const TIMING_OPTIONS: readonly TimingOption[] = [
   { value: '提前三天通知', index: '02', title: '提前三天通知', hint: '給行事曆一點心理準備。' },
   { value: '深夜限定', index: '03', title: '深夜限定', hint: '白天屬於生活，晚上才屬於我們。' },
   { value: '看到訊息再說', index: '04', title: '看到訊息再說', hint: '一切取決於當時的電量。' },
-  { value: '交給命運安排', index: '05', title: '交給命運安排', hint: '同時有空的那天，就是黃道吉日。' }
+  {
+    value: '交給命運安排',
+    index: '05',
+    title: '交給命運安排',
+    hint: '同時有空的那天，就是黃道吉日。'
+  }
 ];
 
 export const ACTIVITY_OPTIONS: readonly ActivityOption[] = [
@@ -18,19 +23,25 @@ export const ACTIVITY_OPTIONS: readonly ActivityOption[] = [
     key: 'meal',
     label: '用餐',
     hint: '先研究菜單，最後還是點招牌。',
-    paths: ['M7 2v6a2 2 0 0 0 2 2v12M7 2a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2M17 2c-2 0-3 2-3 5v3c0 1.5 1 2 2 2v10']
+    paths: [
+      'M7 2v6a2 2 0 0 0 2 2v12M7 2a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2M17 2c-2 0-3 2-3 5v3c0 1.5 1 2 2 2v10'
+    ]
   },
   {
     key: 'walk',
     label: '散步',
     hint: '走著走著，也許就不想回家。',
-    paths: ['M13 5a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0ZM10 9l-2 5-4 2M10 9l4 3 4-1M8 14l3 2-1 6M11 16l4 6']
+    paths: [
+      'M13 5a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0ZM10 9l-2 5-4 2M10 9l4 3 4-1M8 14l3 2-1 6M11 16l4 6'
+    ]
   },
   {
     key: 'yourCall',
     label: '由妳安排',
     hint: '我負責準時出現，驚喜交給妳。',
-    paths: ['M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8']
+    paths: [
+      'M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8'
+    ]
   },
   {
     key: 'lateNight',
@@ -42,7 +53,9 @@ export const ACTIVITY_OPTIONS: readonly ActivityOption[] = [
     key: 'secrets',
     label: '交換心事',
     hint: '一人一個秘密，先從不尷尬的開始。',
-    paths: ['M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z']
+    paths: [
+      'M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z'
+    ]
   },
   {
     key: 'future',

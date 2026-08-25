@@ -1,4 +1,6 @@
-import { Component, DestroyRef, afterNextRender, inject, signal } from '@angular/core';
+import { Component, DOCUMENT, afterNextRender, effect, inject, signal } from '@angular/core';
+
+import { injectReducedMotion } from './reduced-motion';
 
 interface Dot {
   readonly id: number;
@@ -21,12 +23,8 @@ const SPARK_INTERVAL_MS = 55;
 /*
  * 邀請卡的背景氛圍：光暈、方格、幾何裝飾、飄浮光點與指標火花。
  *
- * 光點與火花原本是用 document.createElement 直接塞進 DOM 的，這裡改成 signal
- * 陣列 + @for，讓新增與移除都回到 template。動畫結束事件負責回收，
- * 不需要另外記 setTimeout。
- *
- * 整段效果只在瀏覽器跑：prerender 時陣列是空的，hydration 後才由
- * afterNextRender 開始填，因此不會有伺服器與瀏覽器結構不一致的問題。
+ * 光點與火花是 signal 陣列 + @for，新增與移除都回到 template；
+ * 動畫結束事件負責回收，不需要另外記 setTimeout。
  */
 @Component({
   selector: 'app-ambient-backdrop',
@@ -74,7 +72,8 @@ const SPARK_INTERVAL_MS = 55;
   `
 })
 export class AmbientBackdrop {
-  private readonly _destroyRef = inject(DestroyRef);
+  private readonly _document = inject(DOCUMENT);
+  private readonly _reduceMotion = injectReducedMotion();
 
   protected readonly meshX = signal(30);
   protected readonly meshY = signal(30);
@@ -82,27 +81,41 @@ export class AmbientBackdrop {
   protected readonly dots = signal<readonly Dot[]>([]);
   protected readonly sparks = signal<readonly Spark[]>([]);
 
+  /** effect 在 prerender 期間也會執行，因此由這個旗標把整段動畫擋在瀏覽器之後。 */
+  private readonly _inBrowser = signal(false);
+
   private _nextId = 0;
   private _lastSparkAt = 0;
-  private _reduceMotion = false;
   private _coarsePointer = false;
 
   constructor() {
     afterNextRender(() => {
-      this._reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
       this._coarsePointer = matchMedia('(pointer: coarse)').matches;
+      this._inBrowser.set(true);
+    });
 
-      if (this._reduceMotion) return; // 減少動態模式下不啟動背景計時器。
+    /*
+     * 光點的產生排程。
+     *
+     * 寫成 effect 是因為它依賴的「要不要減少動態」會在執行期改變 ——
+     * 使用者中途打開系統設定，這裡就會自動收掉計時器；onCleanup 讓
+     * 「開始」與「停止」寫在同一個地方，不會有一半忘了收的情況。
+     */
+    effect((onCleanup) => {
+      if (!this._inBrowser() || this._reduceMotion()) return;
 
       // 先放入少量錯開的光點，避免初次進入時背景過於安靜。
       const seedCount = this._coarsePointer ? 8 : 14;
-      for (let index = 0; index < seedCount; index += 1) {
-        const handle = setTimeout(() => this._spawnDot(), index * 120);
-        this._destroyRef.onDestroy(() => clearTimeout(handle));
-      }
+      const seeds = Array.from({ length: seedCount }, (_, index) =>
+        setTimeout(() => this._spawnDot(), index * 120)
+      );
 
       const timer = setInterval(() => this._spawnDot(), this._coarsePointer ? 850 : 420);
-      this._destroyRef.onDestroy(() => clearInterval(timer));
+
+      onCleanup(() => {
+        seeds.forEach(clearTimeout);
+        clearInterval(timer);
+      });
     });
   }
 
@@ -115,7 +128,7 @@ export class AmbientBackdrop {
     const offsetY = (event.clientY / window.innerHeight - 0.5) * 12;
     this.shapeTransform.set(`translate3d(${offsetX}px, ${offsetY}px, 0)`);
 
-    if (this._reduceMotion || this._coarsePointer) return;
+    if (this._reduceMotion() || this._coarsePointer) return;
 
     const now = performance.now();
     if (now - this._lastSparkAt < SPARK_INTERVAL_MS) return;
@@ -142,7 +155,7 @@ export class AmbientBackdrop {
   }
 
   private _spawnDot(): void {
-    if (document.hidden) return;
+    if (this._document.hidden) return;
 
     this.dots.update((dots) => [
       ...dots,

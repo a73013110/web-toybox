@@ -48,6 +48,14 @@ export interface RetryAction {
   readonly run: () => void;
 }
 
+/** 錯誤畫面要顯示的一切。集中成一個物件，畫面就不必湊四個各自為政的 signal。 */
+export interface ErrorView {
+  readonly message: string;
+  readonly retryLabel: string;
+  readonly showBack: boolean;
+  readonly run: () => void;
+}
+
 /** 挑條件用的選項（關係階段、深度）。 */
 export interface ChoiceOption {
   readonly value: string;

@@ -1,0 +1,8 @@
+dist
+.angular
+node_modules
+package-lock.json
+
+# CSS 刻意寫成單行規則（一個選擇器一行），prettier 會把它們全部拆開。
+# 樣式的排版慣例見 CLAUDE.md「樣式」。
+*.css

@@ -14,7 +14,8 @@ export const routes: Routes = [
   },
   {
     path: 'pages/invitation-card',
-    loadComponent: () => import('@features/invitation-card/invitation-card').then((m) => m.InvitationCard)
+    loadComponent: () =>
+      import('@features/invitation-card/invitation-card').then((m) => m.InvitationCard)
   },
   {
     path: 'pages/deep-talk',

@@ -20,7 +20,9 @@ describe('InvitationCardApi', () => {
 
   afterEach(() => httpMock.verify());
 
-  function submitAndCapture(overrides: Partial<Parameters<InvitationCardApi['submitInvitation']>[0]> = {}) {
+  function submitAndCapture(
+    overrides: Partial<Parameters<InvitationCardApi['submitInvitation']>[0]> = {}
+  ) {
     const pending = api.submitInvitation({
       inviteeName: '小明',
       declineCount: 2,

@@ -173,12 +173,12 @@ describe('DeepTalkStore', () => {
       await startDeck();
 
       expect(store.screen()).toBe('error');
-      expect(store.errorMessage()).toBe('符合這些條件的題目都聊過了。');
-      expect(store.retryLabel()).toBe('把看過的重新洗回去');
+      expect(store.error().message).toBe('符合這些條件的題目都聊過了。');
+      expect(store.error().retryLabel).toBe('把看過的重新洗回去');
 
       // 重試會清掉 seen 再抽一次
       api.deckResult = [card('c')];
-      store.runRetry();
+      store.error().run();
       await vi.advanceTimersByTimeAsync(1000);
 
       expect(api.deckRequests.at(-1)?.seen).toEqual([]);
@@ -189,8 +189,8 @@ describe('DeepTalkStore', () => {
       api.deckResult = [];
       await startDeck();
 
-      expect(store.errorMessage()).toContain('這個組合目前沒有題目');
-      expect(store.hideErrorBack()).toBe(true);
+      expect(store.error().message).toContain('這個組合目前沒有題目');
+      expect(store.error().showBack).toBe(false);
     });
 
     it('後端出錯時顯示這個作品自己的說法', async () => {
@@ -198,7 +198,7 @@ describe('DeepTalkStore', () => {
       await startDeck();
 
       expect(store.screen()).toBe('error');
-      expect(store.errorMessage()).toBe('沒能連上題庫，請檢查網路後再試一次。');
+      expect(store.error().message).toBe('沒能連上題庫，請檢查網路後再試一次。');
     });
   });
 

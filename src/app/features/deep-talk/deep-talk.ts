@@ -1,10 +1,9 @@
-import { Component, Injector, afterNextRender, inject, signal } from '@angular/core';
+import { Component, DOCUMENT, afterNextRender, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
 import { setPageMeta } from '@core/seo/page-meta';
 
 import { DeepTalkStore } from './deep-talk.store';
-import type { VoteKind } from './deep-talk.types';
 import { QuestionCard } from './components/question-card';
 import { TalkSetup } from './components/talk-setup';
 import { TrendingList } from './components/trending-list';
@@ -12,7 +11,7 @@ import { TrendingList } from './components/trending-list';
 /*
  * Deep Talk 的頁面外殼。
  *
- * 這裡只做三件事：切畫面、把 Store 的狀態餵給子元件、把子元件的事件轉成 Store 動作。
+ * 這裡只做兩件事：切畫面、把 Store 接到子元件上。
  * 所有狀態都在 DeepTalkStore；Store 掛在這條 route 上，離開頁面就釋放。
  */
 @Component({
@@ -30,10 +29,7 @@ import { TrendingList } from './components/trending-list';
 })
 export class DeepTalk {
   protected readonly store = inject(DeepTalkStore);
-  private readonly _injector = inject(Injector);
-
-  /** 翻牌動畫要每次重播，因此先卸下 class、下一次 render 再掛上。 */
-  protected readonly turning = signal(false);
+  private readonly _document = inject(DOCUMENT);
 
   constructor() {
     setPageMeta({
@@ -45,13 +41,7 @@ export class DeepTalk {
     afterNextRender(() => this.store.restoreSetup());
   }
 
-  protected _onVote(kind: VoteKind): void {
-    this.store.vote(kind);
-    this.turning.set(false);
-    afterNextRender(() => this.turning.set(true), { injector: this._injector });
-  }
-
   protected _onVisibilityChange(): void {
-    if (document.visibilityState === 'hidden') this.store.flushPending();
+    if (this._document.visibilityState === 'hidden') this.store.flushPending();
   }
 }
