@@ -1,0 +1,93 @@
+:host { display: block; width: 100%; }
+
+.deck { position: relative; }
+
+/* 底下疊兩張，讓它看起來真的是一疊牌。 */
+.deck::before, .deck::after {
+  position: absolute;
+  right: 0;
+  left: 0;
+  height: 40px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  content: "";
+}
+.deck::before { bottom: -7px; margin: 0 12px; opacity: 0.7; }
+.deck::after { bottom: -13px; margin: 0 24px; opacity: 0.45; }
+
+.card {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 340px;
+  padding: 24px 24px 20px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: 0 24px 60px rgba(20, 20, 20, 0.1);
+  backdrop-filter: blur(10px);
+}
+.card.is-turning { animation: turn 320ms cubic-bezier(0.4, 0, 0.2, 1) both; }
+
+@keyframes turn {
+  0% { opacity: 1; transform: perspective(900px) rotateY(0deg); }
+  50% { opacity: 0.2; transform: perspective(900px) rotateY(-12deg) scale(0.97); }
+  100% { opacity: 1; transform: perspective(900px) rotateY(0deg); }
+}
+
+.card-top { display: flex; align-items: center; justify-content: space-between; }
+
+.card-depth { padding: 4px 10px; color: var(--accent); font-size: 10px; font-weight: 700; letter-spacing: 0.16em; border: 1px solid var(--accent-soft); border-radius: 999px; }
+.card-count { color: var(--ink-soft); font-size: 11px; font-weight: 600; letter-spacing: 0.14em; }
+
+.card-question {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  margin: 26px 0 20px;
+  font-family: "Noto Serif TC", var(--font-serif), serif;
+  font-size: clamp(21px, 5.6vw, 27px);
+  font-weight: 500;
+  line-height: 1.75;
+}
+
+.card-topics { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 10px; padding: 0; list-style: none; }
+.card-topics li { padding: 3px 9px; color: var(--ink-soft); font-size: 11px; background: var(--accent-faint); border-radius: 999px; }
+
+.card-loved { margin: 0 0 12px; color: var(--accent); font-size: 11px; font-weight: 600; }
+.card-loved[hidden] { display: none; }
+
+/* 三顆 chip 在窄螢幕排不下，讓它自己折行，不要擠成一團。 */
+.card-share { display: flex; flex-wrap: wrap; gap: 8px; padding-top: 14px; border-top: 1px solid var(--line); }
+
+.chip-btn {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  padding: 7px 12px;
+  color: var(--ink-soft);
+  font-size: 12px;
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: color 180ms ease, border-color 180ms ease;
+}
+.chip-btn svg { width: 14px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.5; }
+.chip-btn:hover:not(:disabled) { color: var(--accent); border-color: var(--accent-soft); }
+.chip-btn:disabled { opacity: 0.5; cursor: default; }
+.chip-btn[aria-expanded="true"] { color: var(--accent); border-color: var(--accent-soft); background: var(--accent-faint); }
+
+.followup { margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--line); }
+
+/* ---------- 投票 ---------- */
+
+.vote { display: flex; flex-direction: column; gap: 6px; align-items: center; margin-top: 34px; }
+.vote .btn-primary { min-width: 240px; }
+
+@media (min-width: 560px) {
+  .card { min-height: 380px; padding: 30px 32px 24px; }
+  .vote { flex-direction: row-reverse; gap: 20px; justify-content: center; }
+}

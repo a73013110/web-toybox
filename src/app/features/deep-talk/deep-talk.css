@@ -1,43 +1,148 @@
-/* 階段一佔位樣式。搬入真正的頁面時整份取代。 */
-.scaffold {
-  display: grid;
-  place-content: center;
-  gap: 12px;
-  min-height: 100vh;
-  padding: var(--gutter);
-  background: var(--paper);
+/*
+ * Deep Talk。沿用共用的紙感骨架（字體、間距、圓角、按鈕），只換掉強調色。
+ *
+ * 顏色的挑選：#a83f22 在 --paper 上的對比度約 5.7:1、在 --paper-deep 上約 5.2:1，
+ * 都過得了 WCAG AA 的 4.5:1。更亮的橘紅（例如 #c1543a）只有 4.2:1，
+ * 拿來當小字會不合格，因此只用在裝飾性的光暈上。
+ *
+ * 這幾個變數宣告在 :host 而不是 :root：作品專屬的調性只在這個頁面生效，
+ * 離開頁面就恢復全站預設，不會污染其他作品。
+ */
+:host {
+  --accent: #a83f22;
+  --accent-soft: rgba(168, 63, 34, 0.3);
+  --accent-faint: rgba(168, 63, 34, 0.1);
+
+  /* 純裝飾用，不承載文字。 */
+  --ember: #c1543a;
+  --dusk-warm: rgba(193, 84, 58, 0.16);
+  --dusk-cool: rgba(84, 74, 110, 0.12);
+
+  display: flex;
+  flex-direction: column;
+  min-height: 100svh;
   color: var(--ink);
-  text-align: center;
+  background: linear-gradient(180deg, var(--paper), var(--paper-deep));
 }
 
-.scaffold-tag {
-  margin: 0;
-  color: var(--accent);
-  font-size: 0.75rem;
-  letter-spacing: 0.24em;
+/* ---------- 背景 ---------- */
+
+.dusk, .grain { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+
+.dusk {
+  background:
+    radial-gradient(60% 45% at 78% 12%, var(--dusk-warm), transparent 70%),
+    radial-gradient(55% 40% at 12% 88%, var(--dusk-cool), transparent 70%);
+}
+
+/* 細微的紙張顆粒，避免大片漸層看起來太乾淨。 */
+.grain {
+  opacity: 0.4;
+  background-image: radial-gradient(rgba(20, 20, 20, 0.055) 1px, transparent 1px);
+  background-size: 3px 3px;
+}
+
+/* ---------- 版面 ---------- */
+
+.stage {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 640px;
+  min-height: 100vh;
+  min-height: 100svh;
+  margin: 0 auto;
+  padding: 72px 20px 24px;
+}
+
+.screen { display: none; width: 100%; }
+.screen.is-active { display: block; animation: rise 420ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.screen-shuffle.is-active { display: flex; flex-direction: column; align-items: center; gap: 26px; }
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: none; }
+}
+
+.panel {
+  position: relative;
+  padding: 42px 26px 30px;
+  overflow: hidden;
+  text-align: center;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: 0 24px 60px rgba(20, 20, 20, 0.08);
+  backdrop-filter: blur(10px);
+}
+
+.panel::before {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent-soft), transparent);
+  content: "";
+}
+
+.panel-wide { text-align: left; }
+
+.panel h2 { margin: 0 0 10px; font-family: var(--font-serif); font-size: clamp(26px, 7vw, 34px); font-weight: 600; letter-spacing: 0.01em; }
+.panel .sub { margin: 0 0 6px; color: var(--ink-soft); font-size: 13px; line-height: 1.7; }
+
+.page-footer {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  margin-top: 22px;
+  color: var(--ink-soft);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
 }
 
-.scaffold h1 {
-  margin: 0;
-  font-family: var(--font-serif);
-  font-size: clamp(2rem, 6vw, 3.25rem);
-  font-weight: 600;
+/* ---------- 洗牌 ---------- */
+
+.shuffle { position: relative; width: 128px; height: 168px; }
+
+.shuffle-card {
+  position: absolute;
+  inset: 0;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 12px 30px rgba(20, 20, 20, 0.1);
+  animation: riffle 1.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+.shuffle-card:nth-child(2) { animation-delay: 0.16s; }
+.shuffle-card:nth-child(3) { animation-delay: 0.32s; }
+
+@keyframes riffle {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  35% { transform: translate(-24px, -10px) rotate(-7deg); }
+  70% { transform: translate(20px, -4px) rotate(6deg); }
 }
 
-.scaffold-note {
-  margin: 0;
-  color: var(--ink-soft);
-}
+.shuffle-label { margin: 0; color: var(--ink-soft); font-size: 12px; letter-spacing: 0.22em; text-transform: uppercase; }
 
-.scaffold-links {
-  display: flex;
-  gap: 20px;
-  justify-content: center;
-  margin-top: 12px;
-}
+/* ---------- 收尾 ---------- */
 
-.scaffold-links a {
-  color: var(--ink);
-  text-underline-offset: 4px;
+.send-status { min-height: 18px; margin: 0 0 14px; color: var(--ink-soft); font-size: 11px; }
+.restart-btn { margin-top: 8px; }
+
+/* ---------- 熱門排行 ---------- */
+
+.trending-back { margin-top: 22px; }
+
+/* ---------- 響應式 ---------- */
+
+@media (min-width: 560px) {
+  .panel { padding: 48px 40px 34px; }
 }

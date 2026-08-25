@@ -1,8 +1,130 @@
-<main class="scaffold">
-  <p class="scaffold-tag">階段一佔位</p>
-  <h1>Deep Talk</h1>
-  <p class="scaffold-note">Store 與畫面於階段五搬入。</p>
-  <nav class="scaffold-links">
-    <a routerLink="/">回首頁</a>
-  </nav>
+<div class="dusk" aria-hidden="true"></div>
+<div class="grain" aria-hidden="true"></div>
+
+<a class="back-link" routerLink="/" aria-label="回到作品目錄">
+  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5m6-6-6 6 6 6" /></svg>
+  <span>作品目錄</span>
+</a>
+
+<main class="stage">
+  @switch (store.screen()) {
+    @case ('setup') {
+      <section class="screen is-active" aria-labelledby="setupTitle">
+        <h1 class="sr-only" id="setupTitle">挑選這一疊的條件</h1>
+
+        <app-talk-setup
+          [step]="store.step()"
+          [stage]="store.stage()"
+          [depth]="store.depth()"
+          [topics]="store.topics()"
+          [topicSummary]="store.topicSummary()"
+          [progressPercent]="store.setupProgressPercent()"
+          [error]="store.setupError()"
+          (stagePicked)="store.pickStage($event)"
+          (depthPicked)="store.pickDepth($event)"
+          (topicCycled)="store.cycleTopic($event)"
+          (back)="store.backStep()"
+          (started)="store.start()"
+          (trendingRequested)="store.showTrending()"
+        />
+      </section>
+    }
+
+    @case ('shuffle') {
+      <!-- 把載入藏在動畫底下。 -->
+      <section class="screen is-active screen-shuffle" aria-labelledby="shuffleTitle">
+        <div class="shuffle" aria-hidden="true">
+          <span class="shuffle-card"></span>
+          <span class="shuffle-card"></span>
+          <span class="shuffle-card"></span>
+        </div>
+        <p class="shuffle-label" id="shuffleTitle" role="status">洗牌中…</p>
+      </section>
+    }
+
+    @case ('cards') {
+      <section class="screen is-active">
+        @if (store.currentCard(); as card) {
+          <app-question-card
+            [card]="card"
+            [count]="store.cardCount()"
+            [lovedLabel]="store.lovedLabel()"
+            [turning]="turning()"
+            (voted)="_onVote($event)"
+          />
+        }
+      </section>
+    }
+
+    @case ('end') {
+      <section class="screen is-active" aria-labelledby="endTitle">
+        <div class="panel">
+          <div class="mark" aria-hidden="true">
+            <svg viewBox="0 0 34 34" fill="none">
+              <circle cx="17" cy="17" r="14" />
+              <path class="mark-ink" d="M11 17l4 4 8-8" />
+            </svg>
+          </div>
+          <p class="eyebrow">That's a wrap</p>
+          <h2 id="endTitle">今天聊了 {{ store.deck().length }} 題</h2>
+          <p class="sub">{{ store.endSummary() }}</p>
+          <div class="divider" aria-hidden="true"></div>
+          <p class="send-status" role="status">{{ store.sendStatus() }}</p>
+          <button class="btn btn-primary btn-wide" type="button" (click)="store.again()">
+            再來一疊
+          </button>
+          <button class="btn btn-link restart-btn" type="button" (click)="store.restart()">
+            換個條件重新開始
+          </button>
+        </div>
+      </section>
+    }
+
+    @case ('trending') {
+      <section class="screen is-active" aria-labelledby="trendingTitle">
+        <div class="panel panel-wide">
+          <p class="eyebrow">Most Loved</p>
+          <h2 id="trendingTitle">大家最愛聊的題目</h2>
+          <p class="sub">熱門度來自真實使用者按下的「很讚」，不是誰猜的。</p>
+          <div class="divider" aria-hidden="true"></div>
+
+          <app-trending-list
+            [cards]="store.trendingCards()"
+            [emptyMessage]="store.trendingEmptyMessage()"
+          />
+
+          <button class="btn btn-link trending-back" type="button" (click)="store.backFromTrending()">
+            回上一頁
+          </button>
+        </div>
+      </section>
+    }
+
+    @case ('error') {
+      <section class="screen is-active" aria-labelledby="errorTitle">
+        <div class="panel">
+          <p class="eyebrow">Something went wrong</p>
+          <h2 id="errorTitle">沒能拿到題目</h2>
+          <p class="sub">{{ store.errorMessage() }}</p>
+          <div class="divider" aria-hidden="true"></div>
+          <button class="btn btn-primary btn-wide" type="button" (click)="store.runRetry()">
+            {{ store.retryLabel() }}
+          </button>
+          <button
+            class="btn btn-link"
+            type="button"
+            [hidden]="store.hideErrorBack()"
+            (click)="store.restart()"
+          >
+            回去改條件
+          </button>
+        </div>
+      </section>
+    }
+  }
+
+  <footer class="page-footer">
+    <span>Deep Talk</span>
+    <span>{{ store.stageLabel() }}</span>
+  </footer>
 </main>

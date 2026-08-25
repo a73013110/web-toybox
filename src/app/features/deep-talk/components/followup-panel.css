@@ -1,0 +1,26 @@
+/*
+ * 展開後接在按鈕底下的一區。用細線與卡片其餘部分隔開 ——
+ * 它是「這張卡的附加動作」，不是卡片內容本身，層級要看得出來比題目低。
+ */
+:host { display: block; text-align: left; }
+
+.followup-lead { margin: 0 0 8px; color: var(--ink-soft); font-size: 11px; font-weight: 600; letter-spacing: 0.04em; }
+.followup-lead[hidden] { display: none; }
+
+.followup-list { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.followup-list li {
+  padding-left: 11px;
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.7;
+  border-left: 2px solid var(--accent-soft);
+}
+
+.followup-list:not(:empty) + .followup-ask { margin-top: 14px; }
+
+/* 窄螢幕上輸入框與按鈕並排會把輸入框壓到看不見提示字，寬度不夠就讓按鈕掉到下一行。 */
+.followup-ask { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; }
+.followup-input { flex: 1 1 200px; height: 38px; padding: 0 11px; font-size: 13px; }
+.followup-submit { flex: none; white-space: nowrap; }
+
+.followup-status { min-height: 16px; margin: 8px 0 0; color: var(--ink-soft); font-size: 11px; }
