@@ -1,43 +1,159 @@
-/* 階段一佔位樣式。搬入真正的頁面時整份取代。 */
-.scaffold {
-  display: grid;
-  place-content: center;
-  gap: 12px;
-  min-height: 100vh;
-  padding: var(--gutter);
-  background: var(--paper);
-  color: var(--ink);
-  text-align: center;
-}
-
-.scaffold-tag {
-  margin: 0;
-  color: var(--accent);
-  font-size: 0.75rem;
-  letter-spacing: 0.24em;
-  text-transform: uppercase;
-}
-
-.scaffold h1 {
-  margin: 0;
-  font-family: var(--font-serif);
-  font-size: clamp(2rem, 6vw, 3.25rem);
-  font-weight: 600;
-}
-
-.scaffold-note {
-  margin: 0;
-  color: var(--ink-soft);
-}
-
-.scaffold-links {
+/*
+ * 邀請卡樣式。原本寫在 body 上的規則改掛 :host——元件樣式封裝下 body 選擇器不會生效。
+ * 背景氛圍（aurora / mesh / 光點 / 幾何裝飾）另見 ambient-backdrop.css。
+ */
+:host {
+  position: relative;
   display: flex;
-  gap: 20px;
+  align-items: center;
   justify-content: center;
-  margin-top: 12px;
+  min-height: 100svh;
+  padding: 58px 24px 24px;
+  overflow-x: hidden;
+  color: var(--ink);
+  font-family: var(--font-sans);
+  background:
+    radial-gradient(1100px 700px at 12% 8%, #ffffff 0%, transparent 55%),
+    radial-gradient(900px 700px at 90% 12%, #fbf8f2 0%, transparent 50%),
+    radial-gradient(1000px 800px at 50% 100%, #f0ede6 0%, transparent 55%),
+    linear-gradient(180deg, var(--paper) 0%, var(--paper-deep) 100%);
 }
 
-.scaffold-links a {
-  color: var(--ink);
-  text-underline-offset: 4px;
+/* 名字關卡開著時鎖住捲動。 */
+:host(.name-gate-open) { overflow: hidden; }
+
+.name-gate { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; padding: 24px; background: rgba(238, 236, 231, 0.78); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); }
+.name-gate[hidden] { display: none; }
+.name-panel { width: min(100%, 390px); padding: 42px 34px 34px; text-align: center; background: rgba(255, 255, 255, 0.88); border: 1px solid rgba(20, 20, 20, 0.08); border-radius: var(--radius); box-shadow: 0 30px 60px -12px rgba(20, 20, 20, 0.18); }
+.name-panel .mark { margin-bottom: 20px; }
+.name-label { display: block; margin: 25px 0 7px; color: var(--ink-soft); font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-align: left; }
+.name-input { height: 48px; padding: 0 14px; font-size: 14px; }
+.name-panel .field-error { margin-bottom: 7px; text-align: left; }
+
+/*
+ * 名字關卡是整片遮罩（z-index 10），會把固定在左上角的「作品目錄」蓋掉。
+ * 這道關卡在整個體驗的最前面，被擋住等於一進來就沒有退路，所以讓連結浮在遮罩之上。
+ */
+.back-link { z-index: 11; }
+
+.stage { position: relative; z-index: 2; width: min(92vw, 420px); margin: auto; }
+.card { position: relative; min-height: 510px; padding: 44px 34px 36px; overflow: hidden; text-align: center; background: var(--surface); border: 1px solid rgba(20, 20, 20, 0.06); border-radius: var(--radius); box-shadow: 0 1px 1px rgba(0, 0, 0, 0.02), 0 30px 60px -12px rgba(20, 20, 20, 0.16), inset 0 0 0 1px rgba(255, 255, 255, 0.5); backdrop-filter: blur(26px) saturate(160%); -webkit-backdrop-filter: blur(26px) saturate(160%); }
+.card::before { position: absolute; top: 0; right: 0; left: 0; height: 1px; background: linear-gradient(90deg, transparent, var(--gold-soft), transparent); content: ""; }
+.progress { position: absolute; top: 0; right: 0; left: 0; height: 1px; overflow: hidden; }
+.progress span { display: block; height: 100%; background: var(--gold); transition: width 400ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+.step-back { position: absolute; top: 18px; left: 20px; z-index: 2; display: inline-flex; gap: 5px; align-items: center; padding: 5px; color: var(--ink-soft); font: 500 10px/1 var(--font-sans); letter-spacing: 0.04em; background: transparent; border: 0; cursor: pointer; transition: color 200ms ease; }
+.step-back[hidden] { display: none; }
+.step-back:hover { color: var(--ink); }
+.step-back svg { width: 14px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.5; transition: transform 200ms ease; }
+.step-back:hover svg { transform: translateX(-2px); }
+
+h1, h2 { margin: 0 0 10px; color: var(--ink); font-family: var(--font-serif); font-size: 32px; font-weight: 600; line-height: 1.28; letter-spacing: 0.01em; }
+.invitee-name { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.invitee-name[hidden] { display: none; }
+.sub { min-height: 23px; margin: 0; color: var(--ink-soft); font-size: 13px; font-weight: 400; line-height: 1.7; letter-spacing: 0.01em; }
+.sub-inner { display: inline-block; transition: opacity 280ms ease, transform 280ms ease; }
+.sub-inner.fading { opacity: 0; transform: translateY(4px); }
+.scene[hidden] { display: none; }
+.scene.active { display: block; animation: fadeUp 500ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+
+.button-stack { display: flex; gap: 18px; flex-direction: column; align-items: center; }
+
+/* 「願意」會隨著婉拒次數悄悄放大，「先不要」則會閃避；兩者都是本頁專屬行為。 */
+.yes-btn { transform: scale(var(--yes-grow, 1)); }
+.yes-btn:hover:not(:disabled) { transform: translateY(-2px) scale(var(--yes-grow, 1)); }
+.yes-btn:active:not(:disabled) { transform: translateY(0) scale(var(--yes-grow, 1)); }
+.no-btn { transform: translateX(var(--dodge-x, 0)) rotate(var(--dodge-r, 0)); }
+
+.card.is-teasing {
+  animation: politeShake 380ms cubic-bezier(0.36, 0.07, 0.19, 0.97);
+}
+
+.timing-fieldset { padding: 0; border: 0; }
+.timing-grid { display: grid; gap: 7px; margin: 20px 0 4px; }
+.timing-option { position: relative; }
+.timing-option input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.timing-card { position: relative; display: grid; grid-template-columns: 28px 1fr; gap: 10px; align-items: center; min-height: 58px; padding: 9px 34px 9px 12px; color: var(--ink); text-align: left; background: rgba(255, 255, 255, 0.4); border: 1px solid var(--line); border-radius: 3px; cursor: pointer; transition: color 200ms ease, background 200ms ease, border-color 200ms ease, box-shadow 200ms ease, transform 200ms ease; }
+.timing-card::after { position: absolute; top: 50%; right: 13px; width: 11px; height: 11px; border: 1px solid var(--gold-soft); border-radius: 50%; content: ""; transform: translateY(-50%); transition: background 200ms ease, border-color 200ms ease, box-shadow 200ms ease; }
+.timing-card > b { color: var(--gold); font-family: var(--font-serif); font-size: 16px; font-weight: 600; }
+.timing-card > span { display: flex; gap: 2px; flex-direction: column; }
+.timing-card strong { font-size: 11.5px; font-weight: 600; letter-spacing: 0.02em; }
+.timing-card small { color: var(--ink-soft); font-size: 9.5px; font-weight: 400; line-height: 1.45; transition: color 200ms ease; }
+.timing-card:hover { border-color: var(--gold-soft); transform: translateX(2px); }
+.timing-option input:checked + .timing-card { color: #fff; background: var(--ink); border-color: var(--ink); box-shadow: 0 9px 20px rgba(20, 20, 20, 0.16); }
+.timing-option input:checked + .timing-card::after { background: var(--gold); border-color: var(--gold); box-shadow: inset 0 0 0 3px var(--ink); }
+.timing-option input:checked + .timing-card small { color: rgba(255, 255, 255, 0.65); }
+.timing-option input:focus-visible + .timing-card { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+.activity-fieldset { padding: 0; border: 0; }
+.activity-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin: 20px 0 4px; }
+.activity-option { position: relative; }
+.activity-option input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.activity-option .option-card { position: relative; display: grid; grid-template-columns: 24px 1fr; gap: 11px; align-items: start; min-height: 92px; padding: 14px 13px; color: var(--ink); text-align: left; background: rgba(255, 255, 255, 0.4); border: 1px solid var(--line); border-radius: 3px; cursor: pointer; transition: color 220ms ease, background 220ms ease, border-color 220ms ease, box-shadow 220ms ease, transform 220ms ease; }
+.activity-option .option-card::after { position: absolute; top: 10px; right: 10px; width: 12px; height: 12px; border: 1px solid var(--gold-soft); border-radius: 50%; content: ""; transition: background 200ms ease, border-color 200ms ease, box-shadow 200ms ease; }
+.activity-option svg { width: 19px; height: 19px; margin-top: 2px; fill: none; stroke: var(--ink-soft); stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.25; transition: stroke 200ms ease; }
+.option-copy { display: flex; gap: 5px; flex-direction: column; min-width: 0; padding-right: 10px; }
+.option-copy b { font-size: 12px; font-weight: 600; letter-spacing: 0.03em; }
+.option-copy small { color: var(--ink-soft); font-size: 9.5px; font-weight: 400; line-height: 1.55; transition: color 200ms ease; }
+.activity-option .option-card:hover { border-color: var(--gold-soft); transform: translateY(-1px); }
+.activity-option input:checked + .option-card { color: #fff; background: var(--ink); border-color: var(--ink); box-shadow: 0 10px 22px rgba(20, 20, 20, 0.18); }
+.activity-option input:checked + .option-card::after { background: var(--gold); border-color: var(--gold); box-shadow: inset 0 0 0 3px var(--ink); }
+.activity-option input:checked + .option-card svg { stroke: #fff; }
+.activity-option input:checked + .option-card small { color: rgba(255, 255, 255, 0.65); }
+.activity-option input:focus-visible + .option-card { outline: 2px solid var(--gold); outline-offset: 2px; }
+.custom-activity-option { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr; }
+.custom-activity-option .option-card { min-height: 118px; padding-right: 18px; }
+.custom-activity-option .custom-activity-input { position: absolute; right: 13px; bottom: 10px; left: 48px; z-index: 1; width: auto; height: 36px; padding: 0 10px; opacity: 1; font-size: 11px; }
+.custom-activity-input::placeholder { color: #9a9892; }
+.custom-activity-option:has(.custom-activity-input:focus) .option-card { border-color: var(--gold-soft); }
+.selection-status { display: flex; align-items: center; justify-content: space-between; min-height: 28px; margin: 2px 0 5px; }
+.selection-status > p { margin-top: 0; margin-bottom: 0; }
+.selection-count { color: var(--gold); font-size: 10px; font-weight: 600; letter-spacing: 0.06em; }
+.confirmation-status { display: flex; gap: 9px; align-items: center; justify-content: center; min-height: 24px; margin: -3px 0 9px; color: var(--ink-soft); font-size: 11px; line-height: 1.6; }
+.confirmation-status[hidden] { display: none; }
+.confirmation-orbit { position: relative; width: 18px; height: 18px; flex: 0 0 18px; border: 1px solid rgba(168, 135, 79, 0.28); border-radius: 50%; animation: confirmationOrbit 1s linear infinite; }
+.confirmation-orbit::before { position: absolute; top: -2px; left: 6px; width: 4px; height: 4px; background: var(--gold); border-radius: 50%; box-shadow: 0 0 8px rgba(168, 135, 79, 0.5); content: ""; }
+.confirmation-orbit::after { position: absolute; inset: 5px; background: rgba(168, 135, 79, 0.2); border-radius: 50%; content: ""; animation: confirmationCore 1s ease-in-out infinite; }
+.confirmation-message { animation: confirmationTextBreathe 960ms ease-in-out infinite alternate; }
+.confirm-btn.is-confirming { color: #fff; cursor: wait; background: var(--ink); box-shadow: 0 10px 24px rgba(20, 20, 20, 0.16); animation: confirmationButtonBreathe 1.6s ease-in-out infinite; }
+.confirm-btn.is-confirming::after { animation: confirmationSweep 1.1s ease-in-out infinite; }
+
+.summary-box { margin: 24px 0 20px; padding: 12px 2px; text-align: left; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.summary-row { display: flex; gap: 14px; align-items: baseline; padding: 8px 0; }
+.summary-row dt { width: 60px; flex-shrink: 0; color: var(--ink-soft); font-size: 10px; font-weight: 400; letter-spacing: 0.14em; text-transform: uppercase; }
+.summary-row dd { margin: 0; color: var(--ink); font-size: 13px; font-weight: 500; }
+.friendly-clause { margin: -7px 0 20px; color: var(--ink-soft); font-size: 10.5px; line-height: 1.6; letter-spacing: 0.02em; }
+.particle { position: absolute; z-index: 3; top: 30%; left: 50%; pointer-events: none; animation: burst 1s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
+.page-footer { display: flex; justify-content: space-between; margin-top: 20px; padding: 0 6px; color: var(--ink-soft); font-size: 9px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; opacity: 0.65; }
+
+@keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes burst { to { opacity: 0; transform: translate(var(--tx), var(--ty)) rotate(var(--rot)) scale(0); } }
+@keyframes politeShake { 0%, 100% { transform: translateX(0); } 30% { transform: translateX(-3px) rotate(-0.35deg); } 65% { transform: translateX(3px) rotate(0.35deg); } }
+@keyframes confirmationSweep { 0% { left: -100%; } 65%, 100% { left: 100%; } }
+@keyframes confirmationOrbit { to { transform: rotate(360deg); } }
+@keyframes confirmationCore { 0%, 100% { opacity: 0.3; transform: scale(0.7); } 50% { opacity: 0.9; transform: scale(1); } }
+@keyframes confirmationTextBreathe { from { opacity: 0.58; } to { opacity: 1; } }
+@keyframes confirmationButtonBreathe { 0%, 100% { box-shadow: 0 8px 20px rgba(20, 20, 20, 0.14); } 50% { box-shadow: 0 13px 30px rgba(20, 20, 20, 0.25); } }
+
+@media (max-width: 400px) {
+  :host { align-items: flex-start; padding: 62px 16px 20px; }
+  .back-link { left: 18px; }
+  .stage { width: 100%; }
+  .card { min-height: 500px; padding: 38px 24px 30px; }
+  .name-panel { padding: 36px 24px 28px; }
+  h1, h2 { font-size: 29px; }
+  .activity-grid { grid-template-columns: 1fr; }
+  .activity-option .option-card { min-height: 76px; }
+  .custom-activity-option .option-card { min-height: 118px; } /* 自訂輸入欄需要額外高度，避免手機版文字重疊。 */
+}
+
+@media (max-height: 690px) and (min-width: 401px) {
+  :host { align-items: flex-start; overflow-y: auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .confirmation-orbit,
+  .confirmation-orbit::after,
+  .confirmation-message,
+  .confirm-btn.is-confirming,
+  .confirm-btn.is-confirming::after { animation: none; }
 }

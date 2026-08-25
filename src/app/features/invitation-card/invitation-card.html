@@ -1,8 +1,290 @@
-<main class="scaffold">
-  <p class="scaffold-tag">階段一佔位</p>
-  <h1>Invitation Card</h1>
-  <p class="scaffold-note">五步驟表單於階段四以 Signal Forms 搬入。</p>
-  <nav class="scaffold-links">
-    <a routerLink="/">回首頁</a>
-  </nav>
+<app-ambient-backdrop />
+
+<a class="back-link" routerLink="/" aria-label="回到作品目錄">
+  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5m6-6-6 6 6 6" /></svg>
+  <span>作品目錄</span>
+</a>
+
+<!--
+  不標 aria-modal：左上角的「作品目錄」是刻意留在遮罩外面、而且要能用的退路。
+  這裡用 [hidden] 而不是 @if——prerender 產物一律是「關卡開著」的狀態，
+  結構若在瀏覽器端才長出來，hydration 會對不起來。
+-->
+<div class="name-gate" role="dialog" aria-labelledby="nameGateTitle" [hidden]="!nameGateOpen()">
+  <form class="name-panel" novalidate (submit)="_onNameSubmit($event)">
+    <div class="mark" aria-hidden="true">
+      <svg viewBox="0 0 34 34" fill="none">
+        <rect x="4" y="4" width="26" height="26" />
+        <rect x="9" y="9" width="16" height="16" transform="rotate(45 17 17)" />
+      </svg>
+    </div>
+    <p class="eyebrow">Before We Begin</p>
+    <h2 id="nameGateTitle">該怎麼稱呼你？</h2>
+    <p class="sub">填入姓名或喜歡的稱呼，再打開這張邀請卡。</p>
+    <label class="name-label" for="inviteeName">姓名或稱呼</label>
+    <input
+      class="input name-input"
+      id="inviteeName"
+      type="text"
+      autocomplete="name"
+      aria-describedby="nameError"
+      [formField]="form.inviteeName"
+    />
+    <p class="field-error" id="nameError" aria-live="polite">{{ nameError() }}</p>
+    <button class="btn btn-primary btn-wide" type="submit">開始</button>
+  </form>
+</div>
+
+<main class="stage" [attr.inert]="nameGateOpen() ? '' : null">
+  <article class="card" aria-label="邀請卡互動流程" [class.is-teasing]="isTeasing()">
+    <div class="progress" aria-hidden="true">
+      <span [style.width.%]="progressPercent()"></span>
+    </div>
+
+    <button
+      class="step-back"
+      type="button"
+      aria-label="回到上一步"
+      [hidden]="step() === 1"
+      (click)="_onBack()"
+    >
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5m6-6-6 6 6 6" /></svg>
+      <span>上一步</span>
+    </button>
+
+    <!-- 場景全部留在 DOM 裡，只切換 hidden：與原生版本一致，也讓 prerender 產物完整。 -->
+    <section
+      class="scene"
+      id="scene1"
+      aria-labelledby="scene1Title"
+      [hidden]="step() !== 1"
+      [class.active]="step() === 1"
+    >
+      <div class="mark" aria-hidden="true">
+        <svg viewBox="0 0 34 34" fill="none">
+          <rect x="4" y="4" width="26" height="26" />
+          <rect x="9" y="9" width="16" height="16" transform="rotate(45 17 17)" />
+        </svg>
+      </div>
+      <p class="eyebrow">Private Invitation</p>
+      <h1 id="scene1Title">
+        <span class="invitee-name" [hidden]="!inviteeName()">{{ inviteeName() }}，</span>你願意跟我<br />出去嗎？
+      </h1>
+      <p class="sub">
+        <span class="sub-inner" id="subText" aria-live="polite" [class.fading]="subFading()">
+          {{ subText() }}
+        </span>
+      </p>
+      <div class="divider" aria-hidden="true"></div>
+      <div class="button-stack">
+        <button
+          class="btn btn-primary yes-btn"
+          type="button"
+          [style.--yes-grow]="yesScale()"
+          (click)="_onAccept()"
+        >
+          願意
+        </button>
+        <button
+          class="btn btn-link no-btn"
+          type="button"
+          aria-describedby="subText"
+          [disabled]="declineExhausted()"
+          [style.--dodge-x.px]="dodgeX()"
+          [style.--dodge-r.deg]="dodgeRotate()"
+          (click)="_onDecline()"
+        >
+          {{ declineLabel() }}
+        </button>
+      </div>
+    </section>
+
+    <section
+      class="scene"
+      aria-labelledby="scene2Title"
+      [hidden]="step() !== 2"
+      [class.active]="step() === 2"
+    >
+      <div class="mark" aria-hidden="true">
+        <svg viewBox="0 0 34 34" fill="none">
+          <circle cx="17" cy="17" r="15" />
+          <path class="mark-ink" d="M11 17l4 4 8-8" />
+        </svg>
+      </div>
+      <p class="eyebrow">Confirmed</p>
+      <h2 id="scene2Title">太好了</h2>
+      <p class="sub">太好了，拒絕按鈕也鬆了一口氣</p>
+      <div class="divider" aria-hidden="true"></div>
+      <button class="btn btn-primary btn-wide" type="button" (click)="_onContinue()">繼續</button>
+    </section>
+
+    <section
+      class="scene"
+      aria-labelledby="scene3Title"
+      [hidden]="step() !== 3"
+      [class.active]="step() === 3"
+    >
+      <div class="mark" aria-hidden="true">
+        <svg viewBox="0 0 34 34" fill="none">
+          <circle class="mark-ink" cx="17" cy="17" r="14" />
+          <path class="mark-ink" d="M17 9v8l5 3M25.5 8.5l2-2" />
+        </svg>
+      </div>
+      <p class="eyebrow">Step One</p>
+      <h2 id="scene3Title">空檔暗號</h2>
+      <p class="sub">等兩個大忙人同時逃出行程表</p>
+
+      <form novalidate (submit)="_onTimingSubmit($event)">
+        <fieldset class="timing-fieldset">
+          <legend class="sr-only">選擇成行方式</legend>
+          <div class="timing-grid">
+            @for (option of timingOptions; track option.value) {
+              <label class="timing-option">
+                <!-- name 由 [formField] 自己管（同一個 field 的 radio 會自動分到同一組）。 -->
+                <input type="radio" [value]="option.value" [formField]="form.timing" />
+                <span class="timing-card">
+                  <b>{{ option.index }}</b>
+                  <span>
+                    <strong>{{ option.title }}</strong>
+                    <small>{{ option.hint }}</small>
+                  </span>
+                </span>
+              </label>
+            }
+          </div>
+        </fieldset>
+        <p class="field-error" aria-live="polite">{{ timingError() }}</p>
+        <button class="btn btn-primary btn-wide" type="submit" [disabled]="form.timing().invalid()">
+          繼續
+        </button>
+      </form>
+    </section>
+
+    <section
+      class="scene"
+      aria-labelledby="scene4Title"
+      [hidden]="step() !== 4"
+      [class.active]="step() === 4"
+    >
+      <div class="mark" aria-hidden="true">
+        <svg viewBox="0 0 34 34" fill="none">
+          <circle class="mark-ink" cx="17" cy="17" r="14" />
+          <path class="mark-ink" d="M17 9v8l6 3" />
+        </svg>
+      </div>
+      <p class="eyebrow">Step Two</p>
+      <h2 id="scene4Title">選擇項目</h2>
+      <p class="sub">可以複選，多挑幾件想一起做的事</p>
+
+      <form novalidate (submit)="_onActivitySubmit($event)">
+        <!-- 過場期間固定本次選擇，避免送出內容與最後摘要不一致。 -->
+        <fieldset class="activity-fieldset" [disabled]="confirming()">
+          <legend class="sr-only">選擇一項或多項活動</legend>
+          <div class="activity-grid">
+            @for (option of activityOptions; track option.key) {
+              <label class="activity-option">
+                <input type="checkbox" [formField]="form.activities[option.key]" />
+                <span class="option-card">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    @for (path of option.paths; track $index) {
+                      <path [attr.d]="path" />
+                    }
+                  </svg>
+                  <span class="option-copy">
+                    <b>{{ option.label }}</b>
+                    <small>{{ option.hint }}</small>
+                  </span>
+                </span>
+              </label>
+            }
+
+            <div class="activity-option custom-activity-option">
+              <input id="customActivityToggle" type="checkbox" [formField]="form.customEnabled" />
+              <label class="option-card" for="customActivityToggle">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path [attr.d]="customActivityIcon" />
+                </svg>
+                <span class="option-copy">
+                  <b>自己填寫</b>
+                  <small>把你真正想做的事加進來。</small>
+                </span>
+              </label>
+              <label class="sr-only" for="customActivityInput">自訂活動</label>
+              <input
+                class="input custom-activity-input"
+                id="customActivityInput"
+                type="text"
+                placeholder="例如：一起看展"
+                autocomplete="off"
+                [formField]="form.customActivity"
+                (focus)="_onCustomActivityFocus()"
+                (input)="_onCustomActivityInput($event)"
+              />
+            </div>
+          </div>
+        </fieldset>
+
+        <div class="selection-status">
+          <p class="selection-count" aria-live="polite">{{ selectionLabel() }}</p>
+          <p class="field-error" aria-live="polite">{{ activityError() }}</p>
+        </div>
+
+        <div class="confirmation-status" role="status" aria-live="polite" [hidden]="!confirming()">
+          <span class="confirmation-orbit" aria-hidden="true"></span>
+          <span class="confirmation-message">{{ confirmMessage() }}</span>
+        </div>
+
+        <button
+          class="btn btn-primary btn-wide confirm-btn"
+          type="submit"
+          [class.is-confirming]="confirming()"
+          [attr.aria-busy]="confirming() ? 'true' : null"
+          [disabled]="confirmDisabled()"
+        >
+          {{ confirmLabel() }}
+        </button>
+      </form>
+    </section>
+
+    <section
+      class="scene"
+      aria-labelledby="scene5Title"
+      [hidden]="step() !== 5"
+      [class.active]="step() === 5"
+    >
+      <div class="mark" aria-hidden="true">
+        <svg viewBox="0 0 34 34" fill="none">
+          <rect x="4" y="4" width="26" height="26" />
+          <rect x="9" y="9" width="16" height="16" transform="rotate(45 17 17)" />
+        </svg>
+      </div>
+      <p class="eyebrow">All Set</p>
+      <h2 id="scene5Title">行程已安排</h2>
+      <dl class="summary-box">
+        <div class="summary-row"><dt>時間</dt><dd>{{ summary()?.timing || '—' }}</dd></div>
+        <div class="summary-row"><dt>項目</dt><dd>{{ summary()?.activities || '—' }}</dd></div>
+      </dl>
+      <p class="friendly-clause">友情提醒：臨時放鳥，罰請一杯飲料。</p>
+      <button class="btn btn-primary btn-wide" type="button" (click)="_onRestart()">重新開始</button>
+    </section>
+
+    @for (particle of particles(); track particle.id) {
+      <span
+        class="particle"
+        [style.width.px]="particle.size"
+        [style.height.px]="particle.size"
+        [style.background]="particle.color"
+        [style.border-radius]="particle.round ? '50%' : '0'"
+        [style.--tx.px]="particle.tx"
+        [style.--ty.px]="particle.ty"
+        [style.--rot.deg]="particle.rot"
+        (animationend)="_onParticleEnd(particle.id)"
+      ></span>
+    }
+  </article>
+
+  <footer class="page-footer">
+    <span>Invitation Demo</span>
+    <span>{{ stepLabel() }}</span>
+  </footer>
 </main>
