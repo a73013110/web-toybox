@@ -7,6 +7,31 @@
 
 ---
 
+## 遷移已完成
+
+六個階段都做完了，`pages/`、`shared/`、`assets/`、`templates/` 與根目錄的靜態檔案都已移除。
+下面保留原本的計畫內容，因為那些「為什麼這樣選」的理由之後還會用到。
+
+實作過程中與計畫不同的三處：
+
+1. **關掉字型內聯**（計畫沒預期到）。Deep Talk 需要 Noto Serif TC，加進去之後
+   beasties 把上百個 CJK subset 的 `@font-face` 全部內聯，每頁 HTML 從 12 KB
+   膨脹到 390–420 KB。原生版本本來就是純外部 `<link>`，因此在 `angular.json`
+   設 `optimization.fonts.inline: false`，順便消掉先前列在風險表的 FOUT 差異。
+2. **`shared/` 是空的**。原本規劃了 `shared/browser/storage.service.ts`，但
+   localStorage 只有 Deep Talk 用，照「被兩個 feature 用到才移入 shared」的規則
+   應該留在 feature 裡，因此放在 `deep-talk.storage.ts`。
+3. **ESLint 提前到階段一**。它能自動擋掉四條鐵律，早點加比較划算。
+
+過程中抓到兩個 bug，都寫在對應階段的 commit 訊息裡：
+
+- `FollowupPanel` 在 constructor 讀 required input，NG0950 讓歷史追問永遠不會送出。
+  單元測試抓不到，只有實際點過才會發現。
+- 邀請卡「勾了自己填寫但沒填內容」的提示，從原版的即時顯示變成要等欄位 touched，
+  按鈕同時變灰卻沒有說明。
+
+---
+
 ## 0. 先承認的取捨
 
 | 項目 | 現在 | 遷移後 | 判斷 |
@@ -98,14 +123,14 @@ Actions 用 `actions/configure-pages` → `actions/upload-pages-artifact` → `a
 **驗收**：`ng build` 後 `dist/browser/` 確實出現三個 `index.html`，
 用本機靜態伺服器開 `/web-toybox/pages/deep-talk/` 不是 404。
 
-### 階段二：Home
+### 階段二：Home ✅ 已完成
 
 搬 `shared/projects.js` → `features/home/projects.data.ts`，
 `assets/home.js` 的渲染邏輯 → `@for` template，`assets/home.css` → `home.css`。
 
 **驗收**：與現行首頁 1:1 比對（桌面 + 375px）。
 
-### 階段三：API Transport
+### 階段三：API Transport ✅ 已完成
 
 - `shared/api.js` → `core/api/apps-script-client.ts`
 - endpoint 與逾時 → `core/api/apps-script-config.ts`
@@ -117,7 +142,7 @@ Actions 用 `actions/configure-pages` → `actions/upload-pages-artifact` → `a
 **驗收**：用 `HttpTestingController` 測 request header 確實是 `text/plain;charset=utf-8`、
 body 是 string、`ok: false` 會轉成對應錯誤碼、逾時會拋 timeout。
 
-### 階段四：Invitation Card（Signal Forms）
+### 階段四：Invitation Card（Signal Forms） ✅ 已完成
 
 - 一個 `signal(model)` 當唯一資料源，一份 `form(model, schema)` 集中驗證
 - 五個步驟用 `disabled({ when })` 控制推進，不要拆成五份 form
@@ -126,7 +151,7 @@ body 是 string、`ok: false` 會轉成對應錯誤碼、逾時會拋 timeout。
 
 **驗收**：五步驟驗證、query parameter、Apps Script 實際寫入結果與現行版本一致。
 
-### 階段五：Deep Talk
+### 階段五：Deep Talk ✅ 已完成
 
 順序很重要：**先 Store，再畫面，最後 Canvas / Clipboard / Beacon。**
 不要一次重寫 `pages/deep-talk/script.js` 那 700 行。
@@ -141,7 +166,7 @@ Store（route-scoped）管理：當前畫面、設定步驟、關係階段、深
 
 **驗收**：翻完整疊牌 → 點返回鍵回首頁 → 確認 Google Sheet 收到回饋。
 
-### 階段六：正式切換
+### 階段六：正式切換 ✅ 已完成
 
 刪除 `pages/`、`shared/`、`assets/`、`templates/page-starter/`
 （`templates/` 的原生骨架在 Angular 化後已無意義，改用 `ng generate`）。

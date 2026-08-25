@@ -1,3 +1,10 @@
+| `deep-talk.html` / `.css` | 六個畫面的外殼。只覆寫 `--accent` 三個角色 token，其餘沿用共用層 |
+| `deep-talk.store.ts` | 全部狀態與流程。掛在 route 上，離開頁面即釋放 |
+| `deep-talk.api.ts` | 後端呼叫，action 名稱只出現在這裡 |
+| `taxonomy.ts` | 關係階段、深度、主題三份清單 |
+| `deep-talk.storage.ts` | localStorage 存取與資料驗證 |
+| `card-image.ts` | 用 canvas 把題目畫成可分享的圖 |
+| `components/` | 挑條件、題目卡、追問、熱門排行 |
 # Deep Talk
 
 抽一疊由淺入深的問題，陪兩個人聊得再深一點。
@@ -38,19 +45,23 @@
 
 整疊牌一次拿回來，之後翻牌都在前端跑。每翻一張就連一次會慢，也很快會吃掉全站的節流額度。回饋同樣是整疊累積、最後一次送出；中途離開時用 `sendBeacon` 補送。
 
+補送有三個觸發點，缺一不可：`pagehide`（行動瀏覽器關頁）、`visibilitychange`（桌機切分頁），以及 Store 銷毀時的 `DestroyRef.onDestroy`。最後一個是 SPA 才有的情況——點「作品目錄」回首頁不會關掉頁面，前兩者都不會觸發，少了它票就直接消失。
+
 ---
 
 ## 檔案
 
 | 檔案 | 內容 |
 |---|---|
-| `index.html` | 五個畫面的骨架與三個 `<template>` |
-| `style.css` | 只覆寫 `--accent` 三個角色 token，其餘沿用共用層 |
-| `taxonomy.js` | 關係階段、深度、主題三份清單 |
-| `script.js` | 畫面流程、發牌、回饋、熱門排行 |
-| `card-image.js` | 用 canvas 把題目畫成可分享的圖 |
+| `deep-talk.html` / `.css` | 六個畫面的外殼。只覆寫 `--accent` 三個角色 token，其餘沿用共用層 |
+| `deep-talk.store.ts` | 全部狀態與流程。掛在 route 上，離開頁面即釋放 |
+| `deep-talk.api.ts` | 後端呼叫。`action` 名稱只出現在這裡 |
+| `taxonomy.ts` | 關係階段、深度、主題三份清單 |
+| `deep-talk.storage.ts` | localStorage 存取，讀回來的值會對照 taxonomy 驗一次 |
+| `card-image.ts` | 用 canvas 把題目畫成可分享的圖，以及複製與下載 |
+| `components/` | 挑條件、題目卡、追問、熱門排行 |
 
-後端在 [`apps-script/app-deep-talk.gs`](../../apps-script/app-deep-talk.gs)，AI 生成在 [`apps-script/app-deep-talk-ai.gs`](../../apps-script/app-deep-talk-ai.gs)。
+後端在 [`apps-script/app-deep-talk.gs`](../../../../apps-script/app-deep-talk.gs)，AI 生成在 [`apps-script/app-deep-talk-ai.gs`](../../../../apps-script/app-deep-talk-ai.gs)。
 
 ---
 
@@ -74,7 +85,7 @@
 - **「我」只能出現在曖昧中以後的題目裡。** 剛認識就問「你最怕我知道你的哪一面」太快了。
 - **40 個字以內。** 卡片圖最多排八行，超過會自動縮字級，太長就不好看了。
 
-這些規則同時寫在 [`app-deep-talk-ai.gs`](../../apps-script/app-deep-talk-ai.gs) 的 `deepTalkStyleRules()` 裡，是 Gemini 生題目時的主要約束 —— 少了它，模型預設就會寫出左欄那種題目。
+這些規則同時寫在 [`app-deep-talk-ai.gs`](../../../../apps-script/app-deep-talk-ai.gs) 的 `deepTalkStyleRules()` 裡，是 Gemini 生題目時的主要約束 —— 少了它，模型預設就會寫出左欄那種題目。
 
 ---
 
@@ -89,7 +100,7 @@
 
 生出來的追問會累積下來，下一個抽到同一題的人先看得到。所以這顆按鈕按得越多，第一段就越有內容，而第一段是不花錢的。
 
-**你輸入的方向不會給別人看。** 只有 AI 生的追問會被展示。原因與其他防守見 [`apps-script/README.md`](../../apps-script/README.md#追問)。
+**你輸入的方向不會給別人看。** 只有 AI 生的追問會被展示。原因與其他防守見 [`apps-script/README.md`](../../../../apps-script/README.md#追問)。
 
 追問失敗（配額用完、網路不通）不會擋住任何事，卡片照抽，只是那一區顯示一行「AI 這次沒想出來」。
 
@@ -101,12 +112,12 @@
 
 只有一種情況要改程式碼：**新增或改名主題／深度／關係階段**。那時要同時改兩個地方，字串必須完全一致：
 
-- `taxonomy.js`（前端的選項）
+- `taxonomy.ts`（前端的選項）
 - 試算表的下拉選單（題庫的值）
 
 深度還多一個地方：`apps-script/app-deep-talk.gs` 的 `deepTalkDepths()` 與 `deepTalkDeckPlan()`，以及 `app-deep-talk-ai.gs` 的 `deepTalkDepthBrief()`。
 
-題庫的欄位定義與設定步驟見 [`apps-script/README.md`](../../apps-script/README.md#deep-talk-題庫)。
+題庫的欄位定義與設定步驟見 [`apps-script/README.md`](../../../../apps-script/README.md#deep-talk-題庫)。
 
 ---
 

@@ -3,7 +3,7 @@
 五步驟互動邀請卡，完成後把結果寫入 Google Sheet。
 
 - 線上版本：<https://a73013110.github.io/web-toybox/pages/invitation-card/>
-- 後端說明：[apps-script/README.md](../../apps-script/README.md)
+- 後端說明：[apps-script/README.md](../../../../apps-script/README.md)
 
 ## 流程
 
@@ -81,14 +81,14 @@ Write-Output "https://a73013110.github.io/web-toybox/pages/invitation-card/?v=$v
 
 ## 送出行為
 
-Endpoint 設定於 [`script.js`](./script.js) 的 `GOOGLE_SHEETS_ENDPOINT`。送出時：
+Endpoint 設定於 [`apps-script-config.ts`](../../core/api/apps-script-config.ts)，送出走 [`invitation-card.api.ts`](./invitation-card.api.ts)。送出時：
 
 - 使用一般 CORS 請求並讀取 Apps Script 回傳的 JSON，確認寫入成功才進入摘要畫面。
 - 等待過場的文字會持續循環，直到有結果為止；Apps Script 冷啟動可能要數秒。
 - 逾時（30 秒）與一般失敗顯示不同訊息，選項會解鎖讓使用者直接重送。
 - 同一份選擇送出後按鈕會變成「已送出」，避免重複提交；改動選擇後才會重新啟用。
 
-回應格式與限制見 [apps-script/README.md](../../apps-script/README.md)。
+回應格式與限制見 [apps-script/README.md](../../../../apps-script/README.md)。
 
 ## 測試清單
 

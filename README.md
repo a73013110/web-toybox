@@ -1,107 +1,97 @@
 # Web Toybox
 
-一個以原生 HTML、CSS 與 JavaScript 製作的互動網頁作品集。無需建置工具或前端框架，可直接部署到 GitHub Pages。
+一個互動網頁作品集，用 Angular 22 製作，build 期預先渲染成靜態頁面後部署到 GitHub Pages。
 
 - 線上首頁：<https://a73013110.github.io/web-toybox/>
 - 授權方式：[MIT License](./LICENSE)
 
 ## 特色
 
-- **零建置流程**：網站本體不需要 Node.js、套件管理器或打包工具。
-- **共用設計層**：色票、字型與常用元件集中在 `shared/`，新增作品不必複製貼上。
-- **獨立作品結構**：每個作品放在 `pages/<作品名稱>/`，互不干擾。
+- **每頁都是實體 HTML**：build 期 prerender，直接輸入網址或重新整理都不會 404，各頁有自己的 `<title>` 與描述。
+- **共用設計層**：色票、字型與常用元件集中在 `src/styles/`，新增作品不必複製貼上。
+- **垂直切片**：每個作品在 `src/app/features/<作品名稱>/` 自成一區，頁面、狀態、API、型別與測試放在一起。
 - **響應式設計**：支援桌面與行動裝置。
-- **無障礙考量**：提供語意化標籤、鍵盤焦點、讀屏提示與減少動態效果支援。
+- **無障礙考量**：語意化標籤、鍵盤焦點、讀屏提示與減少動態效果支援。
 
 ## 作品
 
 | 作品 | 說明 | 文件 |
 | --- | --- | --- |
-| [Invitation Card](https://a73013110.github.io/web-toybox/pages/invitation-card/) | 五步驟互動邀請卡，結果寫入 Google Sheet | [說明](./pages/invitation-card/README.md) |
-| [Deep Talk](https://a73013110.github.io/web-toybox/pages/deep-talk/) | 抽一疊由淺入深的問題，題庫在 Google Sheet，熱門度由使用者投票決定 | [說明](./pages/deep-talk/README.md) |
+| [Invitation Card](https://a73013110.github.io/web-toybox/pages/invitation-card/) | 五步驟互動邀請卡，結果寫入 Google Sheet | [說明](./src/app/features/invitation-card/README.md) |
+| [Deep Talk](https://a73013110.github.io/web-toybox/pages/deep-talk/) | 抽一疊由淺入深的問題，題庫在 Google Sheet，熱門度由使用者投票決定 | [說明](./src/app/features/deep-talk/README.md) |
 
-作品清單由 [`shared/projects.js`](./shared/projects.js) 提供，首頁的卡片與件數會自動產生。
+首頁的卡片與件數由 [`projects.data.ts`](./src/app/features/home/projects.data.ts) 自動產生。
 
 ## 專案結構
 
 ```text
 web-toybox/
-├── index.html                       # 作品集首頁（卡片由 JavaScript 產生）
-├── 404.html                         # 找不到頁面（樣式內嵌，任意路徑下都能正確顯示）
-├── robots.txt
-├── .nojekyll                        # 關閉 GitHub Pages 的 Jekyll 處理
-├── package.json                     # 僅供開發工具（clasp），網站本體用不到
-├── scripts/
-│   └── gs-deploy.mjs                # 更新 Apps Script 部署，部署 ID 自動取自 config.js
-├── LICENSE
-├── README.md
-├── assets/
-│   ├── favicon.svg                  # 網站圖示
-│   ├── home.css                     # 首頁專屬樣式
-│   └── home.js                      # 依作品清單渲染首頁卡片
-├── shared/                          # 全站共用
-│   ├── tokens.css                   # 設計 token：色票、字型、版面尺寸
-│   ├── base.css                     # 全域重設與無障礙基礎
-│   ├── ui.css                       # 共用元件：按鈕、標籤、輸入欄、返回連結
-│   ├── projects.js                  # 作品清單（新增作品時唯一要改的資料）
-│   ├── config.js                    # 後端部署網址與逾時設定
-│   └── api.js                       # 呼叫 Apps Script 的共用送出層
-├── templates/
-│   └── page-starter/                # 新作品骨架，複製到 pages/ 後改名即可
-├── apps-script/                     # Google Apps Script 後端（單一專案，所有作品共用）
-│   ├── README.md                    # 部署與維護手冊
-│   ├── .clasp.json.example          # clasp 設定範本（實際的 .clasp.json 不進版控）
-│   ├── .claspignore
-│   ├── appsscript.json
-│   ├── main.gs                      # 入口：路由、健康檢查、節流
-│   ├── lib.gs                       # 共用：驗證、試算表寫入、防公式注入
-│   ├── app-invitation-card.gs       # 邀請卡的處理函式
-│   └── test/                        # 後端回歸測試（npm test）
-└── pages/
-    └── invitation-card/
-        ├── README.md
-        ├── index.html
-        ├── style.css
-        └── script.js
+├── src/
+│   ├── app/
+│   │   ├── core/api/                 # Apps Script transport（endpoint、逾時、錯誤碼）
+│   │   ├── core/seo/                 # 每頁的 title 與 description
+│   │   ├── shared/                   # 跨 feature 的無業務程式碼（目前尚無內容）
+│   │   ├── features/
+│   │   │   ├── home/                 # 首頁與作品清單
+│   │   │   ├── invitation-card/      # 邀請卡（Signal Forms）
+│   │   │   └── deep-talk/            # Deep Talk（route-scoped Store）
+│   │   ├── app.ts / app.config.ts / app.routes.ts
+│   ├── styles/                       # tokens.css、base.css、ui.css
+│   └── index.html / main.ts / styles.css
+├── public/                           # favicon.svg、robots.txt、404.html
+├── apps-script/                      # Google Apps Script 後端（單一專案，所有作品共用）
+├── scripts/gs-deploy.mjs             # 更新 Apps Script 部署
+├── docs/angular-migration.md         # 從原生 HTML/JS 遷移過來的紀錄
+├── CLAUDE.md                         # 開發鐵律與慣例
+└── .github/workflows/deploy.yml      # GitHub Pages 部署
 ```
 
 ## 共用層
 
-樣式分成三層，載入順序不能顛倒（`base.css` 與 `ui.css` 都依賴 `tokens.css` 的變數）：
+樣式分成三層，載入順序不能顛倒（`base.css` 與 `ui.css` 都依賴 `tokens.css` 的變數），入口是 [`src/styles.css`](./src/styles.css)：
 
 | 檔案 | 內容 |
 | --- | --- |
-| `shared/tokens.css` | `--ink`、`--gold`、`--paper`、`--surface`、`--font-sans`、`--radius` 等變數。**全站唯一的色票來源**，作品目錄不應該再宣告色碼 |
-| `shared/base.css` | box-sizing、邊界重設、focus 樣式、`prefers-reduced-motion` 支援 |
-| `shared/ui.css` | `.btn` / `.btn-primary` / `.btn-link` / `.btn-wide`、`.eyebrow`、`.mark`、`.divider`、`.input`、`.field-error`、`.sr-only`、`.back-link` |
+| `src/styles/tokens.css` | `--ink`、`--gold`、`--paper`、`--surface`、`--font-sans`、`--radius` 等變數。**全站唯一的色票來源**，作品不應該再宣告色碼 |
+| `src/styles/base.css` | box-sizing、邊界重設、focus 樣式、`prefers-reduced-motion` 支援 |
+| `src/styles/ui.css` | `.btn` / `.btn-primary` / `.btn-link` / `.btn-wide`、`.eyebrow`、`.mark`、`.divider`、`.input`、`.field-error`、`.sr-only`、`.back-link` |
 
-作品專屬的變化寫進該作品自己的 `style.css`，不要改共用檔。
+作品專屬的變化寫進該作品自己的 `.css`，不要改共用檔。要換整頁調性時，在該元件的 `:host` 覆寫 `--accent` 三個角色 token 即可（見 Deep Talk）。
 
-需要把資料送到後端時，一律走 `shared/api.js` 的 `submitToAppsScript()`，不要在各作品自己寫 `fetch`：
+需要把資料送到後端時，一律經由該作品的 `<name>.api.ts`，元件不直接碰 `HttpClient`：
 
-```js
-import { submitToAppsScript, describeSubmitError } from '../../shared/api.js';
+```ts
+// features/my-toy/my-toy.api.ts
+@Injectable({ providedIn: 'root' })
+export class MyToyApi {
+  private readonly _client = inject(AppsScriptClient);
 
-try {
-  await submitToAppsScript('my-toy', { schemaVersion: 1, value });
-} catch (error) {
-  errorLabel.textContent = describeSubmitError(error);
+  async submit(value: string): Promise<void> {
+    await this._client.send('my-toy', { schemaVersion: 1, value });
+  }
 }
 ```
 
-它已處理逾時、跨網域與回應判讀。使用時 `<script>` 需要加上 `type="module"`。
+`AppsScriptClient` 已處理逾時、跨網域、JSON 解析與 `ok` 判讀。錯誤訊息用 `describeAppsScriptError()` 轉成可以直接顯示的句子。
 
 ## 新增作品
 
-1. 複製 `templates/page-starter/` 到 `pages/<作品名稱>/`，目錄名稱使用全小寫、連字號分隔。
-2. 修改 `index.html` 的標題、描述與內容；樣式與腳本留在同一個作品目錄。
-3. 顏色、字型、圓角一律使用 `shared/tokens.css` 的變數；能用 `shared/ui.css` 的元件就不要重寫。
-4. 使用相對路徑，確保部署在 GitHub Pages 子路徑時仍能運作。
-5. 在 [`shared/projects.js`](./shared/projects.js) 的 `PROJECTS` 加一筆，首頁就會自動出現卡片：
+1. 在 `src/app/features/<作品名稱>/` 建立 `<name>.ts` / `.html` / `.css`，目錄名稱使用全小寫、連字號分隔。
+2. 在 [`app.routes.ts`](./src/app/app.routes.ts) 加一條 **靜態** 路由（不能有 route param，否則 prerender 找不到它）：
 
-   ```js
+   ```ts
    {
-     slug: 'new-experiment',        // 對應 pages/new-experiment/
+     path: 'pages/new-experiment',
+     loadComponent: () => import('@features/new-experiment/new-experiment').then((m) => m.NewExperiment)
+   }
+   ```
+
+3. 在元件的 constructor 呼叫 `setPageMeta()` 設定該頁的 `<title>` 與描述。
+4. 在 [`projects.data.ts`](./src/app/features/home/projects.data.ts) 的 `PROJECTS` 加一筆，首頁就會自動出現卡片：
+
+   ```ts
+   {
+     slug: 'new-experiment',        // 對應 /pages/new-experiment
      type: 'INTERACTIVE TOY',
      title: 'New Experiment',
      summary: '一到兩句話的說明。'
@@ -110,12 +100,15 @@ try {
 
    還沒做完時加上 `draft: true`，首頁就不會列出，但頁面仍可直接開啟。
 
+5. 顏色、字型、圓角一律使用 `src/styles/tokens.css` 的變數；能用 `ui.css` 的元件就不要重寫。
 6. 為互動元件補上鍵盤操作、焦點狀態與必要的 ARIA 標記。
-7. 若作品有值得說明的參數或後端行為，在作品目錄放一份 `README.md`，並在上方「作品」表格加一列。
+7. 若作品有值得說明的參數或後端行為，在該 feature 目錄放一份 `README.md`，並在上方「作品」表格加一列。
+
+其餘規則（Signals、Signal Forms、命名、邊界）見 [CLAUDE.md](./CLAUDE.md)。
 
 ## 後端
 
-靜態網站沒有後端。需要寫入 Google Sheet、保管 API 金鑰之類的能力時，由 Google Apps Script Web App 承接。
+前端是純靜態的，沒有伺服器。需要寫入 Google Sheet、保管 API 金鑰之類的能力時，由 Google Apps Script Web App 承接。
 
 **所有作品共用一個 Apps Script 專案與一組部署網址**，靠請求中的 `app` 欄位分流。新增作品不需要再開新專案、也不需要再記一組網址。
 
@@ -139,62 +132,60 @@ npm run gs:deploy -- "改了什麼"
 
 ### 需求
 
-- 任一現代瀏覽器
-- Python 3，或其他可啟動靜態伺服器的工具
+- Node.js 24 LTS 以上（Angular 22 需要 `^22.22.3 || ^24.15.0 || >=26.0.0`）
 - 網路連線：載入 Google Fonts 與測試 Apps Script Web App 時需要
-
-以上就是改網頁需要的全部。只有在要用 clasp 部署 Apps Script 時才需要 Node.js：
 
 ```powershell
 npm install
 ```
 
-`package.json` 與 `node_modules/` 只服務開發工具，GitHub Pages 部署完全不會用到。設定方式見 [apps-script/README.md](./apps-script/README.md#用-clasp-從儲存庫直接推送)。
+### 常用指令
 
-### 啟動
+| 指令 | 用途 |
+| --- | --- |
+| `npm start` | 開發伺服器（<http://localhost:4200/>） |
+| `npm run build` | production build，含 prerender |
+| `npm test` | 前端 + 後端全部測試 |
+| `npm run test:frontend` | Angular 單元測試（Vitest） |
+| `npm run test:backend` | Apps Script 回歸測試 |
+| `npm run lint` | ESLint |
+| `npm run format` | Prettier |
 
-在專案根目錄執行：
-
-```powershell
-python -m http.server 8000
-```
-
-接著開啟 <http://localhost:8000/>。
-
-首頁使用 ES module 載入作品清單，**必須透過本機伺服器開啟**，直接雙擊 HTML 檔案會因為瀏覽器限制而無法載入。
+開發伺服器走根路徑，production build 才會掛上 `/web-toybox/` 的 base href。
 
 ## 修改與測試流程
 
-後端（`apps-script/`）有自動化測試：
+提交前至少跑過：
+
+```powershell
+npm run lint
+```
 
 ```powershell
 npm test
 ```
 
-前端沒有自動化測試。提交前至少手動確認：
+```powershell
+npm run build
+```
+
+自動化測試蓋不到的部分，手動確認：
 
 - 首頁與更動到的作品在桌面、窄螢幕（375px）下皆可正常顯示，沒有水平捲軸。
 - 鍵盤可以完成整個互動流程。
 - 啟用「減少動態效果」後不會出現不必要動畫。
 - 瀏覽器主控台沒有未處理錯誤。
+- build 產物裡每個公開路徑都有實體 `index.html`，且各自帶正確的 `<title>` 與描述。
 
-作品各自的測試重點寫在該作品的 README，例如[邀請卡的測試清單](./pages/invitation-card/README.md#測試清單)。
+作品各自的測試重點寫在該作品的 README，例如[邀請卡的測試清單](./src/app/features/invitation-card/README.md#測試清單)。
 
 後端測試的寫法與涵蓋範圍見 [apps-script/README.md](./apps-script/README.md#測試)。
 
-JavaScript 語法可用 Node.js 額外檢查；此步驟非執行網站的必要條件：
-
-```powershell
-node --check pages/invitation-card/script.js
-```
-
 ## 部署至 GitHub Pages
 
-1. 將變更提交並推送到 GitHub。
-2. 進入儲存庫的 **Settings → Pages**。
-3. 在 **Build and deployment** 選擇從分支部署。
-4. 選擇 `main` 分支與根目錄 `/ (root)`。
-5. 儲存並等待 GitHub Pages 完成發布。
+部署由 [GitHub Actions](./.github/workflows/deploy.yml) 負責：推送到 `main` 就會自動 lint、測試、build，並把 `dist/web-toybox/browser/` 發布出去。
+
+首次啟用需要在儲存庫的 **Settings → Pages → Build and deployment** 把 Source 設為 **GitHub Actions**（不是從分支部署）。
 
 一般更新流程：
 

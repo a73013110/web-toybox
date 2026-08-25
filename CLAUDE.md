@@ -1,10 +1,9 @@
 # Web Toybox 前端
 
 Angular 22（standalone、zoneless、build 期 prerender）的互動網頁作品集，部署在 GitHub Pages。
-後端是 Google Apps Script（`apps-script/`），本次遷移**不改動它**。
+後端是 Google Apps Script（`apps-script/`），前端不改動它的契約。
 
-> **現況：遷移進行中。** `pages/`、`shared/`、`assets/` 是待汰換的原生 HTML/JS 版本，
-> `src/` 是 Angular 版本。階段劃分與驗收條件見 `docs/angular-migration.md`。
+> 遷移自原生 HTML/JS 版本，過程與當時的判斷記在 `docs/angular-migration.md`。
 
 ---
 
@@ -121,11 +120,12 @@ Angular 22（standalone、zoneless、build 期 prerender）的互動網頁作品
 src/
 ├─ app/
 │  ├─ core/api/            # AppsScriptClient、endpoint 設定、錯誤型別（不含 UI）
-│  ├─ shared/              # 跨 feature 的無業務程式碼：browser/、ui/、utils/
+│  ├─ core/seo/            # setPageMeta()
+│  ├─ shared/              # 跨 feature 的無業務程式碼（目前是空的，有需要才建）
 │  ├─ features/
 │  │  ├─ home/             # 首頁 + project-card + projects.data.ts
-│  │  ├─ invitation-card/  # 頁面 + .api + .types（Signal Forms）
-│  │  └─ deep-talk/        # 頁面 + .store + .api + .types + components/
+│  │  ├─ invitation-card/  # 頁面 + .api + .schema + .data + .types + ambient-backdrop
+│  │  └─ deep-talk/        # 頁面 + .store + .api + .storage + taxonomy + card-image + components/
 │  ├─ app.ts / app.config.ts / app.routes.ts
 ├─ styles/                 # tokens.css、base.css、ui.css
 └─ main.ts / index.html
@@ -133,6 +133,9 @@ public/                    # favicon.svg、robots.txt、404.html、.nojekyll
 apps-script/               # Apps Script 後端（原樣保留）
 scripts/                   # gs-deploy.mjs
 ```
+
+`shared/` 目前是空的，而且這是刻意的：兩個作品沒有真的共用任何無業務語意的程式碼。
+出現第二個 feature 也要用的東西時才建立，不要為了填滿目錄而先搬。
 
 新增一個作品要動的地方有兩處：`features/home/projects.data.ts`（首頁卡片與件數）
 與 `app.routes.ts`（路由）。prerender 會自動探索靜態路由，不需要第三份清單。
@@ -172,8 +175,8 @@ npm run gs:push        # clasp push
 npm run gs:deploy      # 更新 Apps Script 部署
 ```
 
-⚠️ `scripts/gs-deploy.mjs` 目前用 regex 從 `shared/config.js` 讀部署 ID。
-endpoint 搬到 `src/app/core/api/` 之後**這支腳本必須同步改讀新路徑**，不是原樣保留。
+⚠️ `scripts/gs-deploy.mjs` 用 regex 從 `src/app/core/api/apps-script-config.ts` 讀部署 ID。
+改動那個檔案裡 endpoint 那一行的格式時，要確認腳本還讀得到。
 
 ---
 
