@@ -1,7 +1,7 @@
 /*
  * 更新現有的 Apps Script 部署，網址不變。
  *
- * 部署 ID 就是 /exec 網址中間那一段，直接從 shared/config.js 讀出來，
+ * 部署 ID 就是 /exec 網址中間那一段，直接從 apps-script-config.ts 讀出來，
  * 免得每次都要跑 clasp deployments 去查。
  *
  * 用法：
@@ -14,11 +14,12 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const config = readFileSync(join(root, 'shared', 'config.js'), 'utf8');
+const CONFIG_PATH = join('src', 'app', 'core', 'api', 'apps-script-config.ts');
+const config = readFileSync(join(root, CONFIG_PATH), 'utf8');
 const match = config.match(/macros\/s\/([\w-]+)\/exec/);
 
 if (!match) {
-  console.error('在 shared/config.js 找不到 Apps Script 部署網址。');
+  console.error(`在 ${CONFIG_PATH} 找不到 Apps Script 部署網址。`);
   console.error('請確認 APPS_SCRIPT_ENDPOINT 的格式是 .../macros/s/<部署ID>/exec');
   process.exit(1);
 }
@@ -28,7 +29,7 @@ const args = process.argv.slice(2).filter((arg) => arg !== '--dry-run');
 const description = args.join(' ').trim() || 'update';
 const command = `npx clasp redeploy ${deploymentId} -d ${JSON.stringify(description)}`;
 
-console.log(`部署 ID：${deploymentId.slice(0, 12)}…（取自 shared/config.js）`);
+console.log(`部署 ID：${deploymentId.slice(0, 12)}…（取自 ${CONFIG_PATH}）`);
 console.log(`執行：${command}\n`);
 
 if (process.argv.includes('--dry-run')) process.exit(0);

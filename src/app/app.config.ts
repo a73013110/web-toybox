@@ -1,3 +1,4 @@
+import { provideHttpClient } from '@angular/common/http';
 import type { ApplicationConfig } from '@angular/core';
 import { provideBrowserGlobalErrorListeners } from '@angular/core';
 import { provideClientHydration } from '@angular/platform-browser';
@@ -19,6 +20,8 @@ export const appConfig: ApplicationConfig = {
         scrollPositionRestoration: 'enabled'
       })
     ),
+    // FetchBackend 已是預設，不需要 withFetch()。
+    provideHttpClient(),
     // prerender 產物需要 hydration 才不會在瀏覽器接手時整頁重畫。
     provideClientHydration()
   ]

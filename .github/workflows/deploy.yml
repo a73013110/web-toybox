@@ -34,8 +34,7 @@ jobs:
 
       - run: npm run lint
 
-      # Apps Script 的回歸測試。前端測試在階段三（API transport）之後加入。
-      - run: npm run test:backend
+      - run: npm test
 
       # production 設定會帶上 baseHref /web-toybox/ 並 prerender 所有靜態路由。
       - run: npm run build
