@@ -32,6 +32,13 @@ describe('invitationSchema', () => {
 
       expect(f.inviteeName().invalid()).toBe(false);
     });
+
+    it('只有空白仍視為未填', () => {
+      const { form: f } = createForm({ inviteeName: '   ' });
+
+      expect(f.inviteeName().invalid()).toBe(true);
+      expect(firstMessage(f.inviteeName().errors())).toBe('請填入姓名或稱呼。');
+    });
   });
 
   describe('成行暗號', () => {
@@ -69,6 +76,7 @@ describe('invitationSchema', () => {
       const { form: f } = createForm({ customEnabled: true, customActivity: '   ' });
 
       expect(f.activities().invalid()).toBe(true);
+      expect(f.customActivity().invalid()).toBe(true);
     });
 
     it('自訂項目填了內容就通過', () => {

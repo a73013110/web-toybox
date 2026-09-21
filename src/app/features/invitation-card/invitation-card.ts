@@ -33,6 +33,7 @@ import {
   MIN_CONFIRMATION_MS,
   TIMING_OPTIONS
 } from './invitation-card.data';
+import { normalizeInvitationText } from './invitation-card.normalization';
 import type { InvitationModel } from './invitation-card.types';
 import { injectReducedMotion } from './reduced-motion';
 import { WaitingMessage } from './waiting-message';
@@ -59,7 +60,9 @@ export class InvitationCard {
    * ?invite=<名字>。withComponentInputBinding() 讓 router 直接把 query parameter
    * 綁進 input，元件因此不需要注入 ActivatedRoute，也不必自己去解析網址。
    */
-  readonly invite = input('');
+  readonly invite = input('', {
+    transform: (value: unknown) => normalizeInvitationText(value).slice(0, MAX_NAME_LENGTH)
+  });
 
   private readonly _confetti = viewChild.required(ConfettiBurst);
 
@@ -92,7 +95,9 @@ export class InvitationCard {
   protected readonly progressPercent = computed(() => (this.step() / TOTAL_STEPS) * 100);
   protected readonly waitingIntervalMs = computed(() => (this._reduceMotion() ? 200 : 480));
 
-  protected readonly inviteeName = computed(() => this._model().inviteeName.trim());
+  protected readonly inviteeName = computed(() =>
+    normalizeInvitationText(this._model().inviteeName)
+  );
 
   protected readonly declineLabel = computed(
     () => DECLINE_REACTIONS[this.declineCount() - 1]?.label ?? DEFAULT_DECLINE_LABEL
@@ -117,7 +122,7 @@ export class InvitationCard {
     const preset = ACTIVITY_OPTIONS.filter((option) => model.activities[option.key]).map(
       (option) => option.label
     );
-    const custom = model.customActivity.trim();
+    const custom = normalizeInvitationText(model.customActivity);
 
     return model.customEnabled && custom ? [...preset, custom] : preset;
   });
@@ -178,8 +183,7 @@ export class InvitationCard {
      * hydration 會對不起來。
      */
     afterNextRender(() => {
-      // URL 參數也限制為與輸入欄相同的長度。
-      const invited = this.invite().trim().slice(0, MAX_NAME_LENGTH);
+      const invited = this.invite();
 
       if (invited) {
         this.form.inviteeName().value.set(invited);
@@ -195,6 +199,8 @@ export class InvitationCard {
 
   protected _onNameSubmit(event: Event): void {
     event.preventDefault();
+    const normalizedName = normalizeInvitationText(this.form.inviteeName().value());
+    this.form.inviteeName().value.set(normalizedName);
     this.form.inviteeName().markAsTouched();
 
     if (this.form.inviteeName().invalid()) {
@@ -264,6 +270,8 @@ export class InvitationCard {
 
   protected async _onActivitySubmit(event: Event): Promise<void> {
     event.preventDefault();
+    if (this.confirming()) return;
+
     this.submitError.set('');
 
     const startedAt = performance.now();
@@ -281,7 +289,7 @@ export class InvitationCard {
         });
         return undefined;
       },
-      onInvalid: () => this._focusFirst('.activity-option input, .custom-activity-input')
+      onInvalid: () => this._recoverFromInvalidSubmission()
     }).catch((error: unknown) => {
       console.error(error);
       // 此功能只收集回覆，不會直接建立行事曆行程。
@@ -344,6 +352,26 @@ export class InvitationCard {
       this.subText.set(text);
       this.subFading.set(false);
     });
+  }
+
+  /**
+   * 正常流程不會缺少前置欄位；若狀態被還原、外部資料異常或日後流程改版，
+   * 仍要把使用者帶回真正有問題的位置，不能讓確認鍵看起來毫無反應。
+   */
+  private _recoverFromInvalidSubmission(): void {
+    if (this.form.inviteeName().invalid()) {
+      this.nameGateOpen.set(true);
+      this._focusFirst('.name-input');
+      return;
+    }
+
+    if (this.form.timing().invalid()) {
+      this.step.set(3);
+      this._focusFirst('.timing-option input');
+      return;
+    }
+
+    this._focusFirst('.activity-option input, .custom-activity-input');
   }
 
   /** 焦點管理是少數必須直接碰 DOM 的情況，等下一次 render 完才找得到目前的場景。 */
