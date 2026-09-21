@@ -24,6 +24,11 @@ body {
   margin: 0;
 }
 
+/* 全頁對話框存在時鎖住背景，讓滾輪與觸控只作用在對話框內容。 */
+body:has([data-modal-root]) {
+  overflow: hidden;
+}
+
 button,
 input {
   font: inherit;

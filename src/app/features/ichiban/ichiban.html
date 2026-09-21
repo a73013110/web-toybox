@@ -1,0 +1,313 @@
+<a class="back-link" routerLink="/" aria-label="回到作品目錄">
+  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5m6-6-6 6 6 6" /></svg>
+  <span>作品目錄</span>
+</a>
+
+<header class="lottery-header">
+  <a class="wordmark" routerLink="/">WEB TOYBOX</a>
+  <p>有限票池 · 不放回抽樣</p>
+</header>
+
+@if (store.screen() === 'setup') {
+  <main class="setup-page">
+    <section class="setup-intro" aria-labelledby="setupTitle">
+      <p class="section-index">03 / 一番賞模擬器</p>
+      <h1 id="setupTitle" tabindex="-1">每一張票，<br />都會改變下一抽。</h1>
+      <p class="setup-lead">
+        一番賞不是固定機率輪盤。獎項抽走後不會放回，剩餘數量與下一抽機率會同步改變。
+      </p>
+      <dl class="rule-list">
+        <div>
+          <dt>抽樣方式</dt>
+          <dd>有限票池，不放回</dd>
+        </div>
+        <div>
+          <dt>亂數來源</dt>
+          <dd>Web Crypto</dd>
+        </div>
+        <div>
+          <dt>批次機率</dt>
+          <dd>超幾何分布</dd>
+        </div>
+      </dl>
+      <div class="setup-total" aria-live="polite">
+        <span>{{ setupTotal() }}</span>
+        <small>張票</small>
+      </div>
+    </section>
+
+    <section class="setup-panel" aria-labelledby="poolSettingsTitle">
+      <div class="panel-heading">
+        <p>開盒設定</p>
+        <h2 id="poolSettingsTitle">建立賞池</h2>
+      </div>
+
+      <form novalidate (submit)="_onSetupSubmit($event)">
+        <label class="field-label" for="boxTitle">賞池名稱</label>
+        <input
+          class="setup-input title-input"
+          id="boxTitle"
+          type="text"
+          autocomplete="off"
+          aria-describedby="titleError"
+          [formField]="form.title"
+        />
+        <p class="field-error" id="titleError">{{ titleError() }}</p>
+
+        <fieldset class="prize-settings">
+          <legend>獎項與張數</legend>
+          <div class="prize-settings-head" aria-hidden="true">
+            <span>等級</span>
+            <span>獎項名稱</span>
+            <span>張數</span>
+          </div>
+
+          @for (row of prizeRows; track row.key) {
+            <div class="prize-setting-row">
+              <span class="prize-setting-label" aria-hidden="true">{{ row.label }}</span>
+              <label class="sr-only" [for]="row.key + 'PrizeName'">{{ row.label }} 賞名稱</label>
+              <input
+                class="setup-input"
+                type="text"
+                autocomplete="off"
+                [id]="row.key + 'PrizeName'"
+                [attr.aria-describedby]="row.key + 'PrizeError'"
+                [formField]="form.prizes[row.key].name"
+              />
+              <label class="sr-only" [for]="row.key + 'PrizeQuantity'"
+                >{{ row.label }} 賞張數</label
+              >
+              <input
+                class="setup-input quantity-input"
+                type="number"
+                inputmode="numeric"
+                [id]="row.key + 'PrizeQuantity'"
+                [attr.aria-describedby]="row.key + 'PrizeError'"
+                [formField]="form.prizes[row.key].quantity"
+              />
+              <p class="prize-row-error" aria-live="polite" [id]="row.key + 'PrizeError'">
+                {{ prizeErrors()[row.key] }}
+              </p>
+            </div>
+          }
+        </fieldset>
+        <p class="field-error pool-error" aria-live="polite">{{ setupError() }}</p>
+
+        <div class="last-one-setting">
+          <label class="last-one-toggle">
+            <input type="checkbox" [formField]="form.lastOneEnabled" />
+            <span aria-hidden="true"></span>
+            啟用最後賞
+          </label>
+          @if (form.lastOneEnabled().value()) {
+            <label class="sr-only" for="lastOneName">最後賞名稱</label>
+            <input
+              class="setup-input"
+              id="lastOneName"
+              type="text"
+              autocomplete="off"
+              aria-describedby="lastOneError"
+              [formField]="form.lastOneName"
+            />
+            <p class="field-error" id="lastOneError">{{ lastOneError() }}</p>
+          }
+        </div>
+
+        <button class="start-button" type="submit" [disabled]="form().invalid()">
+          <span>開始抽獎</span>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+        </button>
+      </form>
+    </section>
+  </main>
+} @else {
+  <main class="lottery-page">
+    <section class="box-overview" aria-labelledby="boxTitle">
+      <div>
+        <p class="section-index">開盒進行中</p>
+        <h1 id="boxTitle" tabindex="-1">{{ store.boxTitle() }}</h1>
+      </div>
+      <div class="remaining-count" aria-label="剩餘票數">
+        <span>{{ store.remainingTickets() }}</span>
+        <small>/ {{ store.totalTickets() }} 張</small>
+      </div>
+      <div class="box-progress" aria-hidden="true">
+        <span [style.width.%]="store.progressPercent()"></span>
+      </div>
+    </section>
+
+    <div class="lottery-grid">
+      <section class="pool-section" aria-labelledby="ticketPoolTitle">
+        <div class="section-heading">
+          <div>
+            <p>票池</p>
+            <h2 id="ticketPoolTitle">剩餘票券</h2>
+          </div>
+          <p>{{ store.drawnTickets() }} 張已抽出</p>
+        </div>
+
+        <div
+          class="ticket-wall"
+          role="img"
+          [attr.aria-label]="
+            '共 ' + store.totalTickets() + ' 張票，剩餘 ' + store.remainingTickets() + ' 張'
+          "
+        >
+          @for (ticket of store.ticketViews(); track ticket.id) {
+            <span
+              class="pool-ticket"
+              aria-hidden="true"
+              [class.is-drawn]="ticket.drawn"
+              [class.is-highlighted]="ticket.highlighted"
+              [style.--ticket-delay]="($index % 10) * 18 + 'ms'"
+            >
+              {{ ticket.numberLabel }}
+            </span>
+          }
+        </div>
+
+        @if (store.revealPhase() === 'drawing') {
+          <div class="draw-status" role="status" aria-live="polite">
+            <span
+              class="draw-runner"
+              aria-hidden="true"
+              (animationend)="_onDrawAnimationEnd($event)"
+            ></span>
+            <p>{{ store.drawStatus() }}</p>
+          </div>
+        }
+      </section>
+
+      <aside class="control-panel" aria-labelledby="drawControlTitle">
+        <div class="control-heading">
+          <p>本次抽取</p>
+          <h2 id="drawControlTitle">選擇張數</h2>
+        </div>
+
+        <div class="draw-counts" aria-label="抽取張數">
+          @for (count of store.drawCounts; track count) {
+            <button
+              type="button"
+              [class.is-active]="store.drawCount() === count"
+              [attr.aria-pressed]="store.drawCount() === count"
+              [disabled]="store.revealPhase() !== 'idle' || count > store.remainingTickets()"
+              (click)="store.setDrawCount(count)"
+            >
+              {{ count }}
+            </button>
+          }
+        </div>
+
+        @if (store.trackedPrize(); as tracked) {
+          <section class="probability-card" aria-labelledby="chanceTitle">
+            <div class="probability-tier" aria-hidden="true">{{ tracked.label }}</div>
+            <div>
+              <p id="chanceTitle">{{ tracked.name }}</p>
+              <dl>
+                <div>
+                  <dt>下一張</dt>
+                  <dd>{{ store.singleChanceLabel() }}</dd>
+                </div>
+                <div>
+                  <dt>{{ store.effectiveDrawCount() }} 張內至少一次</dt>
+                  <dd>{{ store.batchChanceLabel() }}</dd>
+                </div>
+              </dl>
+            </div>
+          </section>
+        }
+
+        <button
+          class="draw-button"
+          type="button"
+          [disabled]="!store.canDraw()"
+          (click)="store.draw()"
+        >
+          <span>{{ store.drawButtonLabel() }}</span>
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 7h16v10H4zM8 7V5h8v2M8 12h8" />
+          </svg>
+        </button>
+
+        <button class="reset-button" type="button" (click)="_onResetRequested()">
+          {{ store.resetLabel() }}
+        </button>
+      </aside>
+    </div>
+
+    <section class="prize-ledger" aria-labelledby="prizeLedgerTitle">
+      <div class="section-heading ledger-heading">
+        <div>
+          <p>動態機率</p>
+          <h2 id="prizeLedgerTitle">剩餘獎項</h2>
+        </div>
+        <p>選一項查看批次命中率</p>
+      </div>
+
+      <div class="prize-list">
+        @for (prize of store.prizeViews(); track prize.id) {
+          <button
+            class="prize-row"
+            type="button"
+            [class.is-active]="store.trackedPrizeId() === prize.id"
+            [attr.aria-pressed]="store.trackedPrizeId() === prize.id"
+            (click)="store.trackPrize(prize.id)"
+          >
+            <span class="prize-letter">{{ prize.label }}</span>
+            <span class="prize-name">{{ prize.name }}</span>
+            <span class="prize-bar" aria-hidden="true">
+              <span [style.width.%]="prize.progressPercent"></span>
+            </span>
+            <span class="prize-remaining">{{ prize.remaining }} / {{ prize.quantity }}</span>
+            <span class="prize-odds">{{ prize.oddsLabel }}</span>
+          </button>
+        }
+      </div>
+
+      @if (store.lastOneEnabled()) {
+        <div class="last-one-row" [class.is-awarded]="store.lastOneWinner()">
+          <span>LAST ONE</span>
+          <strong>{{ store.lastOneName() }}</strong>
+          @if (store.lastOneWinner(); as winner) {
+            <small>第 {{ winner.drawNumber }} 抽獲得</small>
+          } @else {
+            <small>抽走最後一張票時獲得</small>
+          }
+        </div>
+      }
+    </section>
+
+    @if (store.recentHistory().length > 0) {
+      <section class="history-section" aria-labelledby="historyTitle">
+        <div class="section-heading">
+          <div>
+            <p>本盒紀錄</p>
+            <h2 id="historyTitle">最近抽出</h2>
+          </div>
+        </div>
+        <ol class="history-list">
+          @for (result of store.recentHistory(); track result.drawNumber) {
+            <li>
+              <span>{{ result.drawLabel }}</span>
+              <strong>{{ result.prizeLabel }} 賞</strong>
+              <p>{{ result.prizeName }}</p>
+              <small>#{{ result.ticketLabel }}</small>
+            </li>
+          }
+        </ol>
+      </section>
+    }
+  </main>
+}
+
+@if (store.showResultDialog()) {
+  <app-ichiban-result
+    [phase]="store.revealPhase()"
+    [results]="store.results()"
+    [lastOneName]="store.lastOneName()"
+    [isComplete]="store.isComplete()"
+    (openRequested)="store.openResults()"
+    (revealFinished)="store.finishReveal()"
+    (closeRequested)="_onResultClosed()"
+  />
+}

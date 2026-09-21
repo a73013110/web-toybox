@@ -19,6 +19,7 @@
 | -------------------------------------------------------------------------------- | ----------------------------------------------------------------- | ---------------------------------------------------- |
 | [Invitation Card](https://a73013110.github.io/web-toybox/pages/invitation-card/) | 五步驟互動邀請卡，結果寫入 Google Sheet                           | [說明](./src/app/features/invitation-card/README.md) |
 | [Deep Talk](https://a73013110.github.io/web-toybox/pages/deep-talk/)             | 抽一疊由淺入深的問題，題庫在 Google Sheet，熱門度由使用者投票決定 | [說明](./src/app/features/deep-talk/README.md)       |
+| [一番賞模擬器](https://a73013110.github.io/web-toybox/pages/ichiban/)            | 有限票池、不放回抽樣、動態機率與最後賞                            | [說明](./src/app/features/ichiban/README.md)         |
 
 首頁的卡片與件數由 [`projects.data.ts`](./src/app/features/home/projects.data.ts) 自動產生。
 

@@ -19,6 +19,12 @@ const PROJECTS: readonly Project[] = [
     title: 'Deep Talk',
     summary:
       '挑好關係、深度與想聊的主題，抽一疊由淺入深的問題。熱門度由真實使用者投票決定，不是誰猜的。'
+  },
+  {
+    slug: 'ichiban',
+    type: 'FINITE LOTTERY',
+    title: '一番賞模擬器',
+    summary: '建立有限賞池，以不放回抽樣抽票；每一張被抽走後，下一抽與批次命中率都會即時改變。'
   }
 ];
 

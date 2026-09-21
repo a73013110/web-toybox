@@ -22,6 +22,10 @@ export const routes: Routes = [
     loadComponent: () => import('@features/deep-talk/deep-talk').then((m) => m.DeepTalk)
   },
   {
+    path: 'pages/ichiban',
+    loadComponent: () => import('@features/ichiban/ichiban').then((m) => m.Ichiban)
+  },
+  {
     // 靜態託管下未知路徑會先被 GitHub Pages 的 404.html 接走，
     // 這條只處理 app 內部的異常導航。
     path: '**',

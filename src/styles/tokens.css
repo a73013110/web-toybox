@@ -9,6 +9,19 @@
   --line: rgba(20, 20, 20, 0.1);
   --danger: #8c2d2d;
 
+  /* 中性紙面與訊號色 —— 給需要更銳利、資訊導向的作品使用 */
+  --paper-neutral: #f7f7f8;
+  --paper-deep-neutral: #e9e9ec;
+  --surface-solid: #ffffff;
+  --ink-inverse: #ffffff;
+  --line-strong: rgba(20, 20, 20, 0.2);
+  --overlay-strong: rgba(20, 20, 20, 0.88);
+  --signal-red: #e4002b;
+  --signal-red-soft: rgba(228, 0, 43, 0.35);
+  --signal-red-faint: rgba(228, 0, 43, 0.1);
+  --accent-contrast-line: rgba(255, 255, 255, 0.65);
+  --accent-contrast-text: rgba(255, 255, 255, 0.8);
+
   /* 紙面 —— 背景與卡片 */
   --paper: #f7f5f1;
   --paper-deep: #eeece7;
