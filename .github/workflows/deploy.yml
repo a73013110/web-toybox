@@ -30,6 +30,12 @@ jobs:
           node-version: '24'
           cache: npm
 
+      # setup-node 只設定 Node.js；npm 版本以 package.json 的 packageManager 為唯一來源。
+      - name: Use project npm version
+        run: |
+          npm install --global --ignore-scripts --no-audit --no-fund "$(node -p 'require("./package.json").packageManager')"
+          npm --version
+
       - run: npm ci
 
       - run: npm run lint
